@@ -501,8 +501,8 @@ function CreatorApp({
                 <div className="tag-preview">
                   {[draft.profession, draft.relationship, draft.mood, draft.ageGroup]
                     .filter(Boolean)
-                    .map((item) => (
-                      <span key={item}>{item}</span>
+                    .map((item, index) => (
+                      <span key={`${item}-${index}`}>{item}</span>
                     ))}
                 </div>
               </aside>

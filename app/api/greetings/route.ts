@@ -19,9 +19,20 @@ function toResponse(row: GreetingRow) {
 }
 
 function errorMessage(error: unknown) {
-  const message = error instanceof Error ? error.message : "Unexpected error";
+  let message = "Unexpected error";
+  if (error instanceof Error) message = error.message;
+  else if (error && typeof error === "object" && "message" in error) {
+    message = String((error as { message?: unknown }).message ?? message);
+  }
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String((error as { code?: unknown }).code ?? "")
+      : "";
   if (message.includes("Supabase server configuration")) {
     return "Server sync тохируулагдаагүй байна. Draft төхөөрөмж дээр хадгалагдсан хэвээр.";
+  }
+  if (code === "PGRST205" || /relation .* does not exist/i.test(message)) {
+    return "Supabase table үүсээгүй байна. `supabase/migrations/0001_initial.sql`-ыг Supabase SQL Editor-т ажиллуулна уу.";
   }
   return message;
 }
