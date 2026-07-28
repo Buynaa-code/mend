@@ -421,8 +421,14 @@ function CreatorApp({
     <div className="creator-shell">
       <aside className="creator-sidebar">
         <div className="sidebar-title">
-          <span>Бүтээгчийн хэсэг</span>
+          <div className="sidebar-title-row">
+            <span>Мэндчилгээ</span>
+            <strong>{step + 1} / 6</strong>
+          </div>
           <small>{draft.recipientName ? `${draft.recipientName}-д` : "Шинэ мэндчилгээ"}</small>
+          <div className="sidebar-progress" aria-hidden="true">
+            <span style={{ width: `${((step + 1) / 6) * 100}%` }} />
+          </div>
         </div>
         <nav className="step-nav" aria-label="Мэндчилгээ үүсгэх алхам">
           {stepNames.map((name, index) => (
@@ -1568,9 +1574,9 @@ export default function BirthdayApp() {
       <header className="app-header">
         <button className="brand" onClick={() => changeRole("creator")} aria-label="Mend нүүр">
           <span>mend.</span>
-          <small>Онцгой мөчийг илүү дотно</small>
+          <small>Төрсөн өдрийн студи</small>
         </button>
-        <nav className={mobileNav ? "open" : ""} aria-label="Role preview">
+        <nav className={mobileNav ? "open" : ""} aria-label="Дүрээр харах">
           <button className={role === "creator" ? "active" : ""} onClick={() => changeRole("creator")}><WandSparkles size={17} />Бүтээгч</button>
           <button className={role === "recipient" ? "active" : ""} onClick={() => changeRole("recipient")}><Gift size={17} />Хүлээн авагч</button>
           <button className={role === "admin" ? "active" : ""} onClick={() => changeRole("admin")}><BarChart3 size={17} />Админ</button>
