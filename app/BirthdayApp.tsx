@@ -7,7 +7,9 @@ import {
   ArrowLeft,
   ArrowRight,
   BarChart3,
+  BadgeCheck,
   Bell,
+  CakeSlice,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -15,12 +17,14 @@ import {
   CircleDollarSign,
   Clock3,
   Copy,
+  CreditCard,
   Download,
   Eye,
   FileText,
   Gift,
   Heart,
   ImagePlus,
+  KeyRound,
   LayoutDashboard,
   LockKeyhole,
   Menu,
@@ -112,13 +116,12 @@ const readyReplies = [
   "Миний өдрийг гоё болголоо!",
 ];
 const stepNames = [
-  "Хүлээн авагч",
-  "Загвар",
-  "Хувийн мэдээлэл",
-  "Захиа ба эффект",
-  "Урьдчилан харах",
-  "Идэвхжүүлэх",
+  "Эрх + Хэнд",
+  "Загвар + Дуу",
+  "Зураг + Захиа",
+  "Preview + Илгээх",
 ];
+const greetingPrice = 6900;
 const defaultPhoto =
   "https://images.unsplash.com/photo-1464349153735-7db50ed83c84?auto=format&fit=crop&w=1200&q=86";
 
@@ -223,8 +226,8 @@ function ProgressHeader({
     <div className="section-heading">
       <p>{eyebrow}</p>
       <h1>{title}</h1>
-      <div className="mobile-step-progress" aria-label={`Алхам ${step + 1} / 6`}>
-        <span style={{ width: `${((step + 1) / 6) * 100}%` }} />
+      <div className="mobile-step-progress" aria-label={`Алхам ${step + 1} / 4`}>
+        <span style={{ width: `${((step + 1) / 4) * 100}%` }} />
       </div>
     </div>
   );
@@ -305,8 +308,10 @@ function CreatorApp({
   const [uploadError, setUploadError] = useState("");
   const [showPayment, setShowPayment] = useState(false);
   const [qrData, setQrData] = useState("");
+  const [codeInput, setCodeInput] = useState(draft.accessCode || "");
+  const [codeFeedback, setCodeFeedback] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  const step = draft.currentStep;
+  const step = Math.min(draft.currentStep, 3);
   const template = templates.find((item) => item.id === draft.templateId);
   const sortedTemplates = useMemo(
     () =>
@@ -339,39 +344,68 @@ function CreatorApp({
   }
 
   function goToStep(next: number) {
-    update({ currentStep: Math.max(0, Math.min(5, next)) });
+    update({ currentStep: Math.max(0, Math.min(3, next)) });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function transition(
-    action: "start-payment" | "confirm-demo-payment" | "publish",
+    action: "start-payment" | "confirm-demo-payment" | "redeem-code" | "publish",
   ) {
+    const generatedCode =
+      draft.accessCode ||
+      `MEND-${crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase()}`;
     const localPatch: Partial<GreetingDraft> =
       action === "start-payment"
         ? { greetingStatus: "READY_TO_PAY", paymentStatus: "PENDING" }
         : action === "confirm-demo-payment"
-          ? { greetingStatus: "READY_TO_PUBLISH", paymentStatus: "SUCCESS" }
-          : {
-              greetingStatus: "PUBLISHED",
-              engagementStatus: "NOT_OPENED",
-              slug:
-                draft.slug ||
-                `${(draft.recipientName || "mend").toLowerCase().replace(/\s+/g, "-")}-${draft.id.slice(-5)}`,
-            };
+          ? {
+              greetingStatus: "DRAFT",
+              paymentStatus: "SUCCESS",
+              accessCode: generatedCode,
+              accessCodeApplied: false,
+            }
+          : action === "redeem-code"
+            ? {
+                greetingStatus: ready ? "READY_TO_PUBLISH" : "DRAFT",
+                accessCodeApplied: true,
+              }
+            : {
+                greetingStatus: "PUBLISHED",
+                engagementStatus: "NOT_OPENED",
+                slug:
+                  draft.slug ||
+                  `${(draft.recipientName || "mend").toLowerCase().replace(/\s+/g, "-")}-${draft.id.slice(-5)}`,
+              };
+    if (action === "confirm-demo-payment") setCodeInput(generatedCode);
     update(localPatch);
     try {
       const response = await fetch("/api/greetings", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: draft.id, action }),
+        body: JSON.stringify({ id: draft.id, action, accessCode: codeInput }),
       });
       if (response.ok) {
         const result = (await response.json()) as { greeting: GreetingDraft };
         setDraft(result.greeting);
+        if (result.greeting.accessCode) setCodeInput(result.greeting.accessCode);
       }
     } catch {
       // Local draft remains usable while the server is unavailable.
     }
+  }
+
+  async function redeemCode() {
+    const normalized = codeInput.trim().toUpperCase();
+    if (
+      draft.paymentStatus !== "SUCCESS" ||
+      !draft.accessCode ||
+      normalized !== draft.accessCode
+    ) {
+      setCodeFeedback("Код буруу эсвэл ашиглах боломжгүй байна.");
+      return;
+    }
+    setCodeFeedback("Эрх амжилттай идэвхжлээ.");
+    await transition("redeem-code");
   }
 
   async function handleImage(event: ChangeEvent<HTMLInputElement>) {
@@ -409,12 +443,17 @@ function CreatorApp({
   }
 
   const stepCanContinue = [
-    Boolean(draft.ageGroup && draft.relationship && draft.mood),
-    Boolean(draft.templateId),
-    Boolean(draft.recipientName.trim() && draft.senderName.trim() && draft.primaryPhoto),
-    Boolean(draft.greetingText.trim()),
+    Boolean(
+      draft.accessCodeApplied &&
+        draft.recipientName.trim() &&
+        draft.senderName.trim() &&
+        draft.ageGroup &&
+        draft.relationship &&
+        draft.mood,
+    ),
+    Boolean(draft.templateId && draft.musicId),
+    Boolean(draft.primaryPhoto && draft.greetingText.trim()),
     ready,
-    true,
   ][step];
 
   return (
@@ -423,11 +462,11 @@ function CreatorApp({
         <div className="sidebar-title">
           <div className="sidebar-title-row">
             <span>Мэндчилгээ</span>
-            <strong>{step + 1} / 6</strong>
+            <strong>{step + 1} / 4</strong>
           </div>
           <small>{draft.recipientName ? `${draft.recipientName}-д` : "Шинэ мэндчилгээ"}</small>
           <div className="sidebar-progress" aria-hidden="true">
-            <span style={{ width: `${((step + 1) / 6) * 100}%` }} />
+            <span style={{ width: `${((step + 1) / 4) * 100}%` }} />
           </div>
         </div>
         <nav className="step-nav" aria-label="Мэндчилгээ үүсгэх алхам">
@@ -466,11 +505,100 @@ function CreatorApp({
           <>
             <ProgressHeader
               step={step}
-              eyebrow="Алхам 1 · Тохирох загварын эхлэл"
-              title="Хэнд зориулж байна?"
+              eyebrow="Алхам 1 · Эрх + Хэнд"
+              title="Төрсөн өдрийн мэндчилгээгээ эхлүүлээрэй"
             />
+            <section className="birthday-promo">
+              <span className="birthday-promo-icon">
+                <CakeSlice size={29} />
+              </span>
+              <div>
+                <small>Нэг удаагийн эрх</small>
+                <h2>Нэг хүнд, нэг онцгой мэндчилгээ</h2>
+                <p>QPay төлбөр баталгаажмагц эрхийн код гарна. Кодоо идэвхжүүлээд story мэндчилгээгээ бүтээнэ.</p>
+              </div>
+              <div className="birthday-promo-price">
+                <span>9,900₮</span>
+                <strong>{greetingPrice.toLocaleString("mn-MN")}₮</strong>
+                <Button
+                  icon={<CreditCard size={18} />}
+                  onClick={() => {
+                    setShowPayment(true);
+                    if (draft.paymentStatus === "UNPAID") transition("start-payment");
+                  }}
+                >
+                  QPay эрх авах
+                </Button>
+              </div>
+            </section>
             <div className="editor-layout">
-              <div className="editor-column">
+              <div className="editor-column form-stack">
+                <section
+                  className={`access-panel ${
+                    draft.accessCodeApplied ? "access-ok" : codeFeedback ? "access-bad" : ""
+                  }`}
+                >
+                  <div className="access-panel-head">
+                    <span><KeyRound size={20} /></span>
+                    <div>
+                      <strong>Урилга үүсгэх эрхийн код</strong>
+                      <small>1 код = 1 төрсөн өдрийн мэндчилгээ</small>
+                    </div>
+                  </div>
+                  <div className="access-entry">
+                    <input
+                      value={codeInput}
+                      maxLength={20}
+                      onChange={(event) => {
+                        setCodeInput(event.target.value.toUpperCase());
+                        setCodeFeedback("");
+                      }}
+                      placeholder="MEND-XXXXXX"
+                    />
+                    <Button
+                      variant="secondary"
+                      icon={<BadgeCheck size={18} />}
+                      disabled={!codeInput.trim() || draft.accessCodeApplied}
+                      onClick={redeemCode}
+                    >
+                      {draft.accessCodeApplied ? "Идэвхтэй" : "Код шалгах"}
+                    </Button>
+                  </div>
+                  <p className={draft.accessCodeApplied ? "ok" : codeFeedback ? "bad" : ""}>
+                    {draft.accessCodeApplied
+                      ? "Эрх идэвхжлээ. Одоо мэндчилгээгээ бүтээж болно."
+                      : codeFeedback || "Кодгүй бол дээрх QPay товчоор эрхээ аваарай."}
+                  </p>
+                  <div className="access-steps" aria-label="Эрх авах алхам">
+                    <span>1. Төлөх</span>
+                    <span>2. Код авах</span>
+                    <span>3. Идэвхжүүлэх</span>
+                  </div>
+                </section>
+                <div className="two-fields name-fields">
+                  <label>
+                    <FieldLabel>Хүлээн авагчийн нэр</FieldLabel>
+                    <input
+                      value={draft.recipientName}
+                      maxLength={40}
+                      onChange={(event) =>
+                        update({ recipientName: sanitizePlainText(event.target.value, 40) })
+                      }
+                      placeholder="Жишээ нь: Ану"
+                    />
+                  </label>
+                  <label>
+                    <FieldLabel>Илгээгчийн нэр</FieldLabel>
+                    <input
+                      value={draft.senderName}
+                      maxLength={40}
+                      onChange={(event) =>
+                        update({ senderName: sanitizePlainText(event.target.value, 40) })
+                      }
+                      placeholder="Таны нэр"
+                    />
+                  </label>
+                </div>
                 <ChoiceGroup
                   label="Насны ангилал"
                   value={draft.ageGroup}
@@ -520,8 +648,8 @@ function CreatorApp({
           <>
             <ProgressHeader
               step={step}
-              eyebrow="Алхам 2 · Танд зориулан эрэмбэлсэн"
-              title="Загвараа сонгоорой"
+              eyebrow="Алхам 2 · Загвар + Дуу"
+              title="Харагдах, сонсогдох мэдрэмжээ сонгоорой"
             />
             <div className="template-grid">
               {sortedTemplates.map((item, index) => (
@@ -564,6 +692,38 @@ function CreatorApp({
                 </article>
               ))}
             </div>
+            <section className="creator-music-picker">
+              <div>
+                <span><Music2 size={19} /></span>
+                <div>
+                  <strong>Мэндчилгээний аялгуу</strong>
+                  <small>Story нээгдэх үед аяархан тоглоно</small>
+                </div>
+              </div>
+              <div className="music-options">
+                {[
+                  ["sunny-days", "Sunny days", "02:24"],
+                  ["warm-memory", "Warm memory", "01:58"],
+                  ["none", "Хөгжимгүй", "—"],
+                ].map(([id, name, duration]) => (
+                  <button
+                    type="button"
+                    key={id}
+                    className={draft.musicId === id ? "selected" : ""}
+                    onClick={() => update({ musicId: id })}
+                  >
+                    <span className="music-icon">
+                      {id === "none" ? <VolumeX size={18} /> : <Music2 size={18} />}
+                    </span>
+                    <span>
+                      <strong>{name}</strong>
+                      <small>{duration}</small>
+                    </span>
+                    {draft.musicId === id && <CheckCircle2 size={18} />}
+                  </button>
+                ))}
+              </div>
+            </section>
           </>
         )}
 
@@ -571,8 +731,8 @@ function CreatorApp({
           <>
             <ProgressHeader
               step={step}
-              eyebrow="Алхам 3 · Гол дүрээ тодруулъя"
-              title="Мэндчилгээг хувийн болгох"
+              eyebrow="Алхам 3 · Зураг + Захиа"
+              title="Дурсамж, хэлэх үгээ нэмээрэй"
             />
             <div className="editor-layout personal-layout">
               <div className="editor-column form-stack">
@@ -612,39 +772,15 @@ function CreatorApp({
                   )}
                   {uploadError && <p className="field-error">{uploadError}</p>}
                 </div>
-                <div className="two-fields">
-                  <label>
-                    <FieldLabel>Хүлээн авагчийн нэр</FieldLabel>
-                    <input
-                      value={draft.recipientName}
-                      maxLength={40}
-                      onChange={(event) =>
-                        update({ recipientName: sanitizePlainText(event.target.value, 40) })
-                      }
-                      placeholder="Жишээ нь: Энхээ"
-                    />
-                  </label>
-                  <label>
-                    <FieldLabel optional>Нас</FieldLabel>
-                    <input
-                      type="number"
-                      min="1"
-                      max="120"
-                      value={draft.recipientAge}
-                      onChange={(event) => update({ recipientAge: event.target.value })}
-                      placeholder="27"
-                    />
-                  </label>
-                </div>
                 <label>
-                  <FieldLabel>Илгээгчийн нэр</FieldLabel>
+                  <FieldLabel optional>Хүлээн авагчийн нас</FieldLabel>
                   <input
-                    value={draft.senderName}
-                    maxLength={40}
-                    onChange={(event) =>
-                      update({ senderName: sanitizePlainText(event.target.value, 40) })
-                    }
-                    placeholder="Таны нэр"
+                    type="number"
+                    min="1"
+                    max="120"
+                    value={draft.recipientAge}
+                    onChange={(event) => update({ recipientAge: event.target.value })}
+                    placeholder="Жишээ нь: 27"
                   />
                 </label>
                 <fieldset className="segmented-field">
@@ -681,28 +817,10 @@ function CreatorApp({
                     placeholder={`Төрсөн өдрийн мэнд, ${draft.recipientName || "Энхээ"}!`}
                   />
                 </label>
-              </div>
-              <aside className="preview-aside">
-                <span className="aside-label">Шууд preview</span>
-                <PhonePreview draft={draft} compact />
-              </aside>
-            </div>
-          </>
-        )}
-
-        {step === 3 && (
-          <>
-            <ProgressHeader
-              step={step}
-              eyebrow="Алхам 4 · Сэтгэлээсээ"
-              title="Захиа, хөгжим, эффектоо сонгох"
-            />
-            <div className="editor-layout">
-              <div className="editor-column form-stack">
                 <label>
                   <FieldLabel>Мэндчилгээний текст</FieldLabel>
                   <textarea
-                    rows={8}
+                    rows={7}
                     maxLength={1000}
                     value={draft.greetingText}
                     onChange={(event) =>
@@ -747,44 +865,152 @@ function CreatorApp({
                     placeholder="Story-ийн төгсгөлд нээгдэх нууц захиа..."
                   />
                 </label>
-                <div className="setting-block">
-                  <FieldLabel>Хөгжим</FieldLabel>
-                  <div className="music-options">
-                    {[
-                      ["sunny-days", "Sunny days", "02:24"],
-                      ["warm-memory", "Warm memory", "01:58"],
-                      ["none", "Хөгжимгүй", "—"],
-                    ].map(([id, name, duration]) => (
-                      <button
-                        type="button"
-                        key={id}
-                        className={draft.musicId === id ? "selected" : ""}
-                        onClick={() => update({ musicId: id })}
-                      >
-                        <span className="music-icon">
-                          {id === "none" ? <VolumeX size={18} /> : <Music2 size={18} />}
-                        </span>
-                        <span>
-                          <strong>{name}</strong>
-                          <small>{duration}</small>
-                        </span>
-                        {draft.musicId === id && <CheckCircle2 size={18} />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
                 <ChoiceGroup
-                  label="Эффект"
+                  label="Баярын эффект"
                   value={draft.effectId}
                   options={["confetti", "balloon", "sparkle", "hearts", "none"]}
                   onChange={(value) => update({ effectId: value })}
                 />
               </div>
               <aside className="preview-aside">
-                <span className="aside-label">Story preview</span>
+                <span className="aside-label">Шууд preview</span>
                 <PhonePreview draft={draft} compact />
               </aside>
             </div>
+          </>
+        )}
+
+        {step === 3 && (
+          <>
+            <ProgressHeader
+              step={step}
+              eyebrow="Алхам 4 · Preview + Илгээх"
+              title={
+                draft.greetingStatus === "PUBLISHED"
+                  ? "Мэндчилгээний линк бэлэн боллоо"
+                  : "Бүгдийг шалгаад линкээ үүсгээрэй"
+              }
+            />
+            {draft.greetingStatus !== "PUBLISHED" ? (
+              <div className="final-editor-layout">
+                <section className="final-preview-pane">
+                  <div className="final-preview-label">
+                    <span><Sparkles size={17} /></span>
+                    <div>
+                      <strong>Хүлээн авагч ингэж харна</strong>
+                      <small>Story preview</small>
+                    </div>
+                  </div>
+                  <PhonePreview draft={draft} />
+                </section>
+                <aside className="final-publish-panel">
+                  <div className="readiness-score">
+                    <span>{ready ? "100%" : "72%"}</span>
+                    <div>
+                      <strong>{ready ? "Линк үүсгэхэд бэлэн" : "Хэдхэн зүйл дутуу байна"}</strong>
+                      <small>Мэндчилгээний шалгах жагсаалт</small>
+                    </div>
+                  </div>
+                  {[
+                    ["Эрхийн код идэвхтэй", Boolean(draft.accessCodeApplied), 0],
+                    ["Загвар ба дуу сонгосон", Boolean(draft.templateId && draft.musicId), 1],
+                    ["Хүлээн авагчийн зураг", Boolean(draft.primaryPhoto), 2],
+                    ["Мэндчилгээний захиа", Boolean(draft.greetingText.trim()), 2],
+                    ["Хүлээн авагч, илгээгчийн нэр", Boolean(draft.recipientName.trim() && draft.senderName.trim()), 0],
+                  ].map(([label, done, targetStep]) => (
+                    <div className={`check-row ${done ? "done" : ""}`} key={String(label)}>
+                      {done ? <CheckCircle2 size={19} /> : <Clock3 size={19} />}
+                      <span>{label}</span>
+                      {!done && <button onClick={() => goToStep(Number(targetStep))}>Засах</button>}
+                    </div>
+                  ))}
+                  <div className="compact-privacy-settings">
+                    {[
+                      ["allowReply", "Хариу хүлээн авах"],
+                      ["allowShare", "Хуваалцахыг зөвшөөрөх"],
+                      ["requirePin", "PIN хамгаалалт"],
+                    ].map(([key, title]) => (
+                      <label className="toggle-row" key={key}>
+                        <span><strong>{title}</strong></span>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(draft[key as keyof GreetingDraft])}
+                          onChange={(event) => update({ [key]: event.target.checked })}
+                        />
+                        <i />
+                      </label>
+                    ))}
+                    {draft.requirePin && (
+                      <label className="pin-field">
+                        <FieldLabel>4 оронтой PIN</FieldLabel>
+                        <input
+                          inputMode="numeric"
+                          maxLength={4}
+                          value={draft.pin}
+                          onChange={(event) =>
+                            update({ pin: event.target.value.replace(/\D/g, "").slice(0, 4) })
+                          }
+                          placeholder="0000"
+                        />
+                      </label>
+                    )}
+                  </div>
+                  <div className="publish-summary">
+                    <BadgeCheck size={21} />
+                    <div>
+                      <strong>Эрхийн код: {draft.accessCodeApplied ? "Идэвхтэй" : "Идэвхгүй"}</strong>
+                      <span>Мэндчилгээ 30 хоног нээлттэй байна.</span>
+                    </div>
+                  </div>
+                  <Button
+                    icon={<Send size={18} />}
+                    disabled={!ready || !draft.accessCodeApplied}
+                    onClick={() => transition("publish")}
+                  >
+                    Линк үүсгэх
+                  </Button>
+                  {!ready && (
+                    <small className="payment-warning">Дутуу мэдээллээ гүйцээгээд дахин оролдоно уу.</small>
+                  )}
+                </aside>
+              </div>
+            ) : (
+              <div className="published-layout birthday-published">
+                <section className="published-cover">
+                  <img src={draft.primaryPhoto || template?.image || defaultPhoto} alt="" />
+                  <div>
+                    <span>Танд мэндчилгээ ирлээ</span>
+                    <h2>{draft.recipientName}</h2>
+                    <p>{draft.headline || "Төрсөн өдрийн мэнд!"}</p>
+                  </div>
+                </section>
+                <section className="share-panel">
+                  <span className="success-mark"><Check size={27} /></span>
+                  <small className="share-kicker">Бэлэн боллоо</small>
+                  <h2>Онцгой мөчийг нь эхлүүлээрэй</h2>
+                  <p>Линкээ Messenger, Instagram эсвэл хүссэн чатаараа илгээнэ.</p>
+                  <div className="share-link">
+                    <span>{shareUrl}</span>
+                    <IconButton label="Линк хуулах" onClick={copyLink}>
+                      <Copy size={18} />
+                    </IconButton>
+                  </div>
+                  <div className="share-actions">
+                    <Button icon={<Share2 size={18} />} onClick={copyLink}>
+                      Линк хуулах
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      icon={<Eye size={18} />}
+                      onClick={() => onRoleChange("recipient")}
+                    >
+                      Нээж үзэх
+                    </Button>
+                  </div>
+                  {qrData && <img className="qr-image" src={qrData} alt="Мэндчилгээний QR код" />}
+                </section>
+              </div>
+            )}
           </>
         )}
 
@@ -975,13 +1201,13 @@ function CreatorApp({
           >
             Буцах
           </Button>
-          {step < 5 && (
+          {step < 3 && (
             <Button
               icon={<ArrowRight size={18} />}
               disabled={!stepCanContinue}
               onClick={() => goToStep(step + 1)}
             >
-              {step === 4 ? "Идэвхжүүлэх хэсэг" : "Үргэлжлүүлэх"}
+              Үргэлжлүүлэх
             </Button>
           )}
         </div>
@@ -994,21 +1220,45 @@ function CreatorApp({
               <X size={19} />
             </IconButton>
             <span className="qpay-mark">Q</span>
-            <h2>Demo төлбөр</h2>
-            <p>Production QPay credential холбогдоогүй тул төлбөрийн callback-ийг туршилтаар баталгаажуулна.</p>
-            <div className="fake-qr">
-              <QrCode size={132} strokeWidth={1.2} />
-            </div>
-            <strong>9,900₮</strong>
-            <Button
-              icon={<CheckCircle2 size={18} />}
-              onClick={async () => {
-                await transition("confirm-demo-payment");
-                setShowPayment(false);
-              }}
-            >
-              Demo төлбөр баталгаажуулах
-            </Button>
+            {draft.paymentStatus === "SUCCESS" && draft.accessCode ? (
+              <>
+                <small className="payment-mode">Төлбөр амжилттай</small>
+                <h2>Таны эрхийн код бэлэн</h2>
+                <p>Энэ код нэг мэндчилгээнд нэг удаа ашиглагдана.</p>
+                <div className="payment-code">{draft.accessCode}</div>
+                <Button
+                  icon={<KeyRound size={18} />}
+                  onClick={() => {
+                    setCodeInput(draft.accessCode);
+                    setShowPayment(false);
+                  }}
+                >
+                  Кодоо ашиглах
+                </Button>
+              </>
+            ) : (
+              <>
+                <small className="payment-mode">Туршилтын QPay</small>
+                <h2>Мэндчилгээний эрх авах</h2>
+                <p>QR-аа уншуулаад төлбөр амжилттай болмогц нэг удаагийн код гарна.</p>
+                <div className="fake-qr">
+                  <QrCode size={132} strokeWidth={1.2} />
+                </div>
+                <div className="qpay-apps" aria-label="Төлбөрийн аппууд">
+                  <span>QPay</span>
+                  <span>Khan Bank</span>
+                  <span>SocialPay</span>
+                  <span>TDB</span>
+                </div>
+                <strong>{greetingPrice.toLocaleString("mn-MN")}₮</strong>
+                <Button
+                  icon={<CheckCircle2 size={18} />}
+                  onClick={() => transition("confirm-demo-payment")}
+                >
+                  Тест төлбөр баталгаажуулах
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1077,7 +1327,7 @@ function RecipientApp({
       <div className="recipient-error">
         <Gift size={38} />
         <h1>Мэндчилгээ хараахан бэлэн болоогүй байна.</h1>
-        <p>Creator flow-оор төлбөрийн demo-г баталгаажуулж нийтлээрэй.</p>
+        <p>Эрхийн кодоо идэвхжүүлээд мэндчилгээний линкээ үүсгээрэй.</p>
         <Button icon={<ArrowLeft size={18} />} onClick={() => onRoleChange("creator")}>
           Үргэлжлүүлж засах
         </Button>

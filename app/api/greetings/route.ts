@@ -139,6 +139,7 @@ type ActionPayload = {
   action?:
     | "start-payment"
     | "confirm-demo-payment"
+    | "redeem-code"
     | "publish"
     | "open"
     | "react"
@@ -149,6 +150,7 @@ type ActionPayload = {
   sessionId?: string;
   moderationStatus?: ModerationStatus;
   reason?: string;
+  accessCode?: string;
 };
 
 export async function PATCH(request: Request) {
@@ -184,12 +186,6 @@ export async function PATCH(request: Request) {
 
     switch (payload.action) {
       case "start-payment":
-        if (!isDraftReady(draft)) {
-          return Response.json(
-            { error: "Төлбөр эхлүүлэхийн өмнө заавал талбаруудаа бөглөнө үү." },
-            { status: 409 },
-          );
-        }
         greetingStatus = "READY_TO_PAY";
         paymentStatus = "PENDING";
         break;
@@ -201,11 +197,42 @@ export async function PATCH(request: Request) {
           );
         }
         paymentStatus = "SUCCESS";
-        greetingStatus = "READY_TO_PUBLISH";
+        greetingStatus = "DRAFT";
+        draft.accessCode =
+          draft.accessCode ||
+          `MEND-${crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase()}`;
+        draft.accessCodeApplied = false;
         break;
+      case "redeem-code": {
+        const submittedCode = sanitizePlainText(payload.accessCode ?? "", 20)
+          .trim()
+          .toUpperCase();
+        if (
+          paymentStatus !== "SUCCESS" ||
+          !draft.accessCode ||
+          submittedCode !== draft.accessCode
+        ) {
+          return Response.json(
+            { error: "Эрхийн код буруу эсвэл ашиглах боломжгүй байна." },
+            { status: 409 },
+          );
+        }
+        draft.accessCodeApplied = true;
+        greetingStatus = isDraftReady(draft) ? "READY_TO_PUBLISH" : "DRAFT";
+        break;
+      }
       case "publish":
-        if (paymentStatus !== "SUCCESS") {
-          return Response.json({ error: "Төлбөр баталгаажаагүй байна." }, { status: 409 });
+        if (paymentStatus !== "SUCCESS" || !draft.accessCodeApplied) {
+          return Response.json(
+            { error: "Төлбөрийн эрхийн код идэвхжээгүй байна." },
+            { status: 409 },
+          );
+        }
+        if (!isDraftReady(draft)) {
+          return Response.json(
+            { error: "Мэндчилгээний мэдээлэл дутуу байна." },
+            { status: 409 },
+          );
         }
         slug =
           slug ||

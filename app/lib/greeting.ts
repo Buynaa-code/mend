@@ -60,6 +60,8 @@ export interface GreetingDraft {
   expiresInDays: number;
   greetingStatus: GreetingStatus;
   paymentStatus: PaymentStatus;
+  accessCode: string;
+  accessCodeApplied: boolean;
   engagementStatus: EngagementStatus;
   moderationStatus: ModerationStatus;
   slug: string;
@@ -205,6 +207,8 @@ export const createDefaultDraft = (): GreetingDraft => {
     expiresInDays: 30,
     greetingStatus: "DRAFT",
     paymentStatus: "UNPAID",
+    accessCode: "",
+    accessCodeApplied: false,
     engagementStatus: "NOT_OPENED",
     moderationStatus: "NORMAL",
     slug: "",
