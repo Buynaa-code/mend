@@ -32,9 +32,10 @@ test("renders the birthday greeting application", async () => {
   assert.match(html, /Бүтээгч/);
   assert.match(html, /Хүлээн авагч/);
   assert.match(html, /Админ/);
-  assert.match(html, /Төрсөн өдрийн мэндчилгээгээ эхлүүлээрэй/);
-  assert.match(html, /QPay эрх авах/);
-  assert.match(html, /Эрх \+ Хэнд/);
+  assert.match(html, /birthday scrapbook/i);
+  assert.match(html, /Хэнд зориулж байна\?/);
+  assert.match(html, /MEND-TEST01/);
+  assert.match(html, /Нэр ба эрх/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });
 

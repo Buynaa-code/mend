@@ -19,7 +19,16 @@ function readDraft(value: GreetingRow["draft_json"]) {
 }
 
 function toResponse(row: GreetingRow) {
-  return { ...row, draft: readDraft(row.draft_json) };
+  const draft = readDraft(row.draft_json);
+  return {
+    ...draft,
+    greetingStatus: row.greeting_status,
+    paymentStatus: row.payment_status,
+    engagementStatus: row.engagement_status,
+    moderationStatus: row.moderation_status,
+    slug: row.slug ?? draft.slug,
+    updatedAt: row.updated_at,
+  };
 }
 
 function errorMessage(error: unknown) {

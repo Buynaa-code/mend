@@ -3,46 +3,36 @@
 /* eslint-disable @next/next/no-img-element */
 
 import {
-  Archive,
   ArrowLeft,
   ArrowRight,
-  BarChart3,
   BadgeCheck,
-  Bell,
-  CakeSlice,
+  Camera,
+  CassetteTape,
   Check,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  CircleDollarSign,
-  Clock3,
   Copy,
-  CreditCard,
-  Download,
   Eye,
-  FileText,
   Gift,
   Heart,
   ImagePlus,
   KeyRound,
-  LayoutDashboard,
   LockKeyhole,
+  Mail,
   Menu,
   MessageCircle,
-  MoreHorizontal,
   Music2,
   PartyPopper,
   Pause,
   Play,
   QrCode,
   RefreshCw,
-  Search,
+  RotateCcw,
   Send,
-  Settings2,
   Share2,
   ShieldCheck,
   Sparkles,
-  Users,
+  Star,
+  Trash2,
   Volume2,
   VolumeX,
   WandSparkles,
@@ -50,10 +40,10 @@ import {
 } from "lucide-react";
 import QRCode from "qrcode";
 import {
+  type ButtonHTMLAttributes,
   type ChangeEvent,
   type ReactNode,
   useEffect,
-  useId,
   useMemo,
   useRef,
   useState,
@@ -65,66 +55,46 @@ import {
   type GreetingDraft,
   isDraftReady,
   sanitizePlainText,
-  scoreTemplate,
   templates,
 } from "./lib/greeting";
 
 type Role = "creator" | "recipient" | "admin";
 type SaveState = "idle" | "saving" | "saved" | "local";
+type RecipientScreen =
+  | "intro"
+  | "tease"
+  | "ready"
+  | "cover"
+  | "gifts"
+  | "memories"
+  | "letter"
+  | "music"
+  | "finale";
+
+const creatorSteps = [
+  ["Хэнд", "Нэр ба эрх"],
+  ["Дурсамж", "Зураг ба захиа"],
+  ["Бэлэг", "Өнгө ба дуу"],
+  ["Илгээх", "Шалгаж нийтлэх"],
+] as const;
 
 const ageGroups = ["Хүүхэд", "Өсвөр нас", "Залуу", "Насанд хүрэгч", "Ахмад"];
-const relationships = [
-  "Найз",
-  "Хамгийн сайн найз",
-  "Хос",
-  "Ээж",
-  "Аав",
-  "Ах, эгч",
-  "Дүү",
-  "Хамаатан",
-  "Хамтран ажиллагч",
-  "Дарга",
-  "Багш",
-  "Үйлчлүүлэгч",
+const relationships = ["Найз", "Хамгийн сайн найз", "Хос", "Ээж", "Аав", "Ах, эгч", "Дүү", "Хамт олон"];
+const moods = ["Хөөрхөн", "Хөгжилтэй", "Сэтгэл хөдөлгөм", "Дулаахан"];
+const musicOptions = [
+  ["sunny-days", "Sunny day", "Хөнгөн, баяртай"],
+  ["warm-memory", "Warm memory", "Зөөлөн, дурсамжтай"],
+  ["none", "Хөгжимгүй", "Чимээгүй нээгдэнэ"],
+] as const;
+
+const fallbackMemories = [
+  "https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=900&q=82",
+  "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=900&q=82",
+  "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=900&q=82",
+  "https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=900&q=82",
+  "https://images.unsplash.com/photo-1464349153735-7db50ed83c84?auto=format&fit=crop&w=900&q=82",
+  "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=900&q=82",
 ];
-const professions = [
-  "Эмч",
-  "Сувилагч",
-  "Цэрэг",
-  "Багш",
-  "Дизайнер",
-  "Программист",
-  "Маркетер",
-  "Хуульч",
-  "Тамирчин",
-  "Оюутан",
-  "Бусад",
-];
-const moods = [
-  "Хөөрхөн",
-  "Хөгжилтэй",
-  "Сэтгэл хөдөлгөм",
-  "Хүндэтгэсэн",
-  "Luxury",
-  "Minimal",
-  "Gen Z",
-  "Retro",
-];
-const reactions = ["❤️", "🥹", "🎉", "😂", "✨"];
-const readyReplies = [
-  "Маш гоё мэндчилгээ байна, баярлалаа!",
-  "Үнэхээр сэтгэл хөдөллөө.",
-  "Миний өдрийг гоё болголоо!",
-];
-const stepNames = [
-  "Эрх + Хэнд",
-  "Загвар + Дуу",
-  "Зураг + Захиа",
-  "Preview + Илгээх",
-];
-const greetingPrice = 6900;
-const defaultPhoto =
-  "https://images.unsplash.com/photo-1464349153735-7db50ed83c84?auto=format&fit=crop&w=1200&q=86";
 
 function Button({
   children,
@@ -137,7 +107,7 @@ function Button({
   icon?: ReactNode;
   variant?: "primary" | "secondary" | "ghost" | "danger";
   className?: string;
-} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+} & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button className={`button button-${variant} ${className}`} {...props}>
       {icon}
@@ -153,7 +123,7 @@ function IconButton({
 }: {
   label: string;
   children: ReactNode;
-} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+} & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button className="icon-button" aria-label={label} title={label} {...props}>
       {children}
@@ -161,24 +131,33 @@ function IconButton({
   );
 }
 
-function StatusBadge({ draft }: { draft: GreetingDraft }) {
-  const status = getDisplayStatus(draft);
-  return <span className={`status-badge status-${status.tone}`}>{status.label}</span>;
+function Giraffe({ className = "" }: { className?: string }) {
+  return (
+    <img
+      className={`giraffe ${className}`}
+      src="/assets/mend-giraffe.png"
+      alt="Цэцэг, захиа барьсан хөөрхөн анааш"
+    />
+  );
 }
 
-function FieldLabel({
-  children,
-  optional,
-}: {
-  children: ReactNode;
-  optional?: boolean;
-}) {
+function PaperDecor() {
   return (
-    <div className="field-label">
-      <span>{children}</span>
-      {optional && <small>Заавал биш</small>}
-    </div>
+    <>
+      <span className="paper-corner paper-corner-one" />
+      <span className="paper-corner paper-corner-two" />
+      <span className="paper-star star-one">★</span>
+      <span className="paper-star star-two">★</span>
+      <span className="paper-star star-three">★</span>
+      <span className="paper-star star-four">★</span>
+      <span className="paper-star star-five">★</span>
+    </>
   );
+}
+
+function StatusPill({ draft }: { draft: GreetingDraft }) {
+  const status = getDisplayStatus(draft);
+  return <span className={`status-pill status-${status.tone}`}>{status.label}</span>;
 }
 
 function ChoiceGroup({
@@ -186,111 +165,48 @@ function ChoiceGroup({
   value,
   options,
   onChange,
-  optional,
 }: {
   label: string;
   value: string;
   options: string[];
   onChange: (value: string) => void;
-  optional?: boolean;
 }) {
   return (
-    <section className="choice-section">
-      <FieldLabel optional={optional}>{label}</FieldLabel>
-      <div className="choice-grid">
+    <fieldset className="choice-field">
+      <legend>{label}</legend>
+      <div className="choice-list">
         {options.map((option) => (
           <button
             type="button"
-            className={`choice-chip ${value === option ? "selected" : ""}`}
+            className={value === option ? "selected" : ""}
             onClick={() => onChange(option)}
             key={option}
           >
-            {value === option && <Check size={15} />}
+            {value === option && <Check size={14} />}
             {option}
           </button>
         ))}
       </div>
-    </section>
+    </fieldset>
   );
 }
 
-function ProgressHeader({
-  step,
-  title,
-  eyebrow,
-}: {
-  step: number;
-  title: string;
-  eyebrow: string;
-}) {
+function MiniPreview({ draft }: { draft: GreetingDraft }) {
+  const photo = draft.primaryPhoto || fallbackMemories[0];
   return (
-    <div className="section-heading">
-      <p>{eyebrow}</p>
-      <h1>{title}</h1>
-      <div className="mobile-step-progress" aria-label={`Алхам ${step + 1} / 4`}>
-        <span style={{ width: `${((step + 1) / 4) * 100}%` }} />
+    <div className={`mini-preview theme-${draft.templateId}`}>
+      <PaperDecor />
+      <div className="mini-preview-title">
+        <small>happy</small>
+        <strong>birthday</strong>
       </div>
-    </div>
-  );
-}
-
-function PhonePreview({
-  draft,
-  compact = false,
-}: {
-  draft: GreetingDraft;
-  compact?: boolean;
-}) {
-  const template = templates.find((item) => item.id === draft.templateId) ?? templates[0];
-  const sender =
-    draft.senderVisibility === "ANONYMOUS"
-      ? "Нууц илгээгч"
-      : draft.senderName || "Таны дотны хүн";
-
-  return (
-    <div className={`phone-preview ${compact ? "phone-compact" : ""}`}>
-      <div className="phone-top">
-        <span>9:41</span>
-        <div>
-          <Volume2 size={13} />
-          <span className="phone-battery" />
-        </div>
+      <div className="mini-camera">
+        <span className="camera-dot" />
+        <img src={photo} alt="" />
+        <Camera size={19} />
       </div>
-      <div
-        className="phone-story"
-        style={{ background: template.background, color: template.text }}
-      >
-        <div className="phone-progress">
-          {[0, 1, 2, 3, 4].map((item) => (
-            <span key={item} className={item === 0 ? "active" : ""} />
-          ))}
-        </div>
-        <div className="phone-story-meta">
-          <span>{sender}</span>
-          <MoreHorizontal size={17} />
-        </div>
-        <div className="phone-photo-wrap" style={{ borderColor: template.accent }}>
-          <img
-            src={draft.primaryPhoto || template.image || defaultPhoto}
-            alt={draft.recipientName || "Мэндчилгээний зураг"}
-          />
-          <span className="photo-sticker" style={{ background: template.accent }}>
-            <Sparkles size={14} />
-          </span>
-        </div>
-        <div className="phone-copy">
-          <small>{template.eyebrow}</small>
-          <h2>{draft.headline || `Төрсөн өдрийн мэнд, ${draft.recipientName || "Энхээ"}!`}</h2>
-          <p>
-            {draft.greetingText ||
-              "Чиний инээмсэглэл энэ өдрийг улам гэрэлтэй болгодог. Аз жаргал дүүрэн байгаарай!"}
-          </p>
-        </div>
-        <div className="phone-footer">
-          <span>{draft.effectId === "none" ? "Эффектгүй" : "Эффект идэвхтэй"}</span>
-          <Heart size={18} />
-        </div>
-      </div>
+      <Giraffe className="mini-giraffe" />
+      <p>{draft.recipientName || "Таны дотны хүнд"}</p>
     </div>
   );
 }
@@ -306,21 +222,13 @@ function CreatorApp({
   saveState: SaveState;
   onRoleChange: (role: Role) => void;
 }) {
+  const [codeInput, setCodeInput] = useState(draft.accessCode || "");
+  const [codeFeedback, setCodeFeedback] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [showPayment, setShowPayment] = useState(false);
   const [qrData, setQrData] = useState("");
-  const [codeInput, setCodeInput] = useState(draft.accessCode || "");
-  const [codeFeedback, setCodeFeedback] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const step = Math.min(draft.currentStep, 3);
-  const template = templates.find((item) => item.id === draft.templateId);
-  const sortedTemplates = useMemo(
-    () =>
-      templates
-        .map((item) => ({ ...item, score: scoreTemplate(item, draft) }))
-        .sort((a, b) => b.score - a.score),
-    [draft],
-  );
   const ready = isDraftReady(draft);
   const shareUrl =
     typeof window !== "undefined" && draft.slug
@@ -330,9 +238,9 @@ function CreatorApp({
   useEffect(() => {
     if (!shareUrl) return;
     QRCode.toDataURL(shareUrl, {
-      width: 220,
+      width: 200,
       margin: 1,
-      color: { dark: "#17241f", light: "#ffffff" },
+      color: { dark: "#493c62", light: "#ffffff" },
     }).then(setQrData);
   }, [shareUrl]);
 
@@ -355,7 +263,7 @@ function CreatorApp({
     const generatedCode =
       draft.accessCode ||
       `MEND-${crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase()}`;
-    const localPatch: Partial<GreetingDraft> =
+    const patch: Partial<GreetingDraft> =
       action === "start-payment"
         ? { greetingStatus: "READY_TO_PAY", paymentStatus: "PENDING" }
         : action === "confirm-demo-payment"
@@ -378,7 +286,8 @@ function CreatorApp({
                   `${(draft.recipientName || "mend").toLowerCase().replace(/\s+/g, "-")}-${draft.id.slice(-5)}`,
               };
     if (action === "confirm-demo-payment") setCodeInput(generatedCode);
-    update(localPatch);
+    update(patch);
+
     try {
       const response = await fetch("/api/greetings", {
         method: "PATCH",
@@ -387,71 +296,111 @@ function CreatorApp({
       });
       if (response.ok) {
         const result = (await response.json()) as { greeting: GreetingDraft };
-        setDraft(result.greeting);
+        setDraft((current) => ({
+          ...current,
+          ...result.greeting,
+          memoryPhotos: result.greeting.memoryPhotos ?? current.memoryPhotos,
+        }));
         if (result.greeting.accessCode) setCodeInput(result.greeting.accessCode);
       }
     } catch {
-      // Local draft remains usable while the server is unavailable.
+      // The local draft remains usable if server sync is unavailable.
     }
   }
 
   async function redeemCode() {
     const normalized = codeInput.trim().toUpperCase();
-    const isDemoCode = normalized === demoAccessCode;
+    const isDemo = normalized === demoAccessCode;
     if (
-      !isDemoCode &&
+      !isDemo &&
       (draft.paymentStatus !== "SUCCESS" ||
         !draft.accessCode ||
         normalized !== draft.accessCode)
     ) {
-      setCodeFeedback("Код буруу эсвэл ашиглах боломжгүй байна.");
+      setCodeFeedback("Код тохирохгүй байна.");
       return;
     }
-    if (isDemoCode) {
-      update({
-        paymentStatus: "SUCCESS",
-        accessCode: demoAccessCode,
-      });
+    if (isDemo) {
+      update({ paymentStatus: "SUCCESS", accessCode: demoAccessCode });
     }
-    setCodeFeedback("Эрх амжилттай идэвхжлээ.");
+    setCodeFeedback("Бүтээх эрх нээгдлээ.");
     await transition("redeem-code");
   }
 
-  async function handleImage(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  async function handleImages(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []).slice(0, 6);
+    if (!files.length) return;
     setUploadError("");
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setUploadError("JPG, PNG эсвэл WEBP зураг оруулна уу.");
-      return;
-    }
-    if (file.size > 8 * 1024 * 1024) {
-      setUploadError("Зургийн хэмжээ 8MB-аас ихгүй байна.");
+    const invalid = files.find(
+      (file) =>
+        !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+        file.size > 6 * 1024 * 1024,
+    );
+    if (invalid) {
+      setUploadError("JPG, PNG, WEBP зураг тус бүр 6MB-аас бага байна.");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => update({ primaryPhoto: String(reader.result) });
-    reader.readAsDataURL(file);
+    const localPhotos = await Promise.all(
+      files.map(
+        (file) =>
+          new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.readAsDataURL(file);
+          }),
+      ),
+    );
 
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      const response = await fetch("/api/media", { method: "POST", body: form });
-      if (response.ok) {
+    setDraft((current) => {
+      const photos = [...(current.memoryPhotos ?? []), ...localPhotos].slice(0, 6);
+      return {
+        ...current,
+        memoryPhotos: photos,
+        primaryPhoto: current.primaryPhoto || photos[0] || "",
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    files.forEach(async (file, index) => {
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        const response = await fetch("/api/media", { method: "POST", body: form });
+        if (!response.ok) return;
         const result = (await response.json()) as { url: string };
-        update({ primaryPhoto: result.url });
+        const localUrl = localPhotos[index];
+        setDraft((current) => ({
+          ...current,
+          memoryPhotos: (current.memoryPhotos ?? []).map((photo) =>
+            photo === localUrl ? result.url : photo,
+          ),
+          primaryPhoto: current.primaryPhoto === localUrl ? result.url : current.primaryPhoto,
+        }));
+      } catch {
+        // Local previews remain available.
       }
-    } catch {
-      // The local preview is already available and will be synced later.
-    }
+    });
+  }
+
+  function removePhoto(index: number) {
+    setDraft((current) => {
+      const photos = (current.memoryPhotos ?? []).filter((_, photoIndex) => photoIndex !== index);
+      return {
+        ...current,
+        memoryPhotos: photos,
+        primaryPhoto: current.primaryPhoto === current.memoryPhotos?.[index]
+          ? photos[0] || ""
+          : current.primaryPhoto,
+      };
+    });
   }
 
   function copyLink() {
     if (shareUrl) navigator.clipboard?.writeText(shareUrl);
   }
 
-  const stepCanContinue = [
+  const stepReady = [
     Boolean(
       draft.accessCodeApplied &&
         draft.recipientName.trim() &&
@@ -460,815 +409,392 @@ function CreatorApp({
         draft.relationship &&
         draft.mood,
     ),
-    Boolean(draft.templateId && draft.musicId),
     Boolean(draft.primaryPhoto && draft.greetingText.trim()),
+    Boolean(draft.templateId && draft.musicId),
     ready,
   ][step];
 
   return (
-    <div className="creator-shell">
-      <aside className="creator-sidebar">
-        <div className="sidebar-title">
-          <div className="sidebar-title-row">
-            <span>Мэндчилгээ</span>
-            <strong>{step + 1} / 4</strong>
-          </div>
-          <small>{draft.recipientName ? `${draft.recipientName}-д` : "Шинэ мэндчилгээ"}</small>
-          <div className="sidebar-progress" aria-hidden="true">
-            <span style={{ width: `${((step + 1) / 4) * 100}%` }} />
+    <div className="creator-studio">
+      <aside className="studio-rail">
+        <div className="rail-mascot">
+          <Giraffe />
+          <div>
+            <strong>{draft.recipientName || "Шинэ мэндчилгээ"}</strong>
+            <span>{step + 1} / 4 алхам</span>
           </div>
         </div>
-        <nav className="step-nav" aria-label="Мэндчилгээ үүсгэх алхам">
-          {stepNames.map((name, index) => (
+        <nav aria-label="Мэндчилгээ бүтээх алхам">
+          {creatorSteps.map(([name, note], index) => (
             <button
               type="button"
               key={name}
+              className={`${step === index ? "active" : ""} ${step > index ? "done" : ""}`}
               onClick={() => goToStep(index)}
-              className={`${index === step ? "active" : ""} ${index < step ? "done" : ""}`}
             >
-              <span>{index < step ? <Check size={15} /> : index + 1}</span>
+              <span>{step > index ? <Check size={15} /> : index + 1}</span>
               <div>
                 <strong>{name}</strong>
-                <small>{index === step ? "Одоо ажиллаж байна" : index < step ? "Бэлэн" : "Хүлээгдэж байна"}</small>
+                <small>{note}</small>
               </div>
             </button>
           ))}
         </nav>
-        <div className="sidebar-summary">
-          <div>
-            <StatusBadge draft={draft} />
-            <span className={`save-dot save-${saveState}`} />
-          </div>
-          <p>
+        <div className="rail-save">
+          <StatusPill draft={draft} />
+          <small>
             {saveState === "saving"
               ? "Хадгалж байна..."
-              : saveState === "local"
-                ? "Төхөөрөмж дээр хадгалсан"
-                : "Бүх өөрчлөлт хадгалагдсан"}
-          </p>
+              : saveState === "saved"
+                ? "Өөрчлөлт хадгалагдсан"
+                : "Төхөөрөмж дээр хадгалсан"}
+          </small>
         </div>
       </aside>
 
-      <main className="creator-main">
-        {step === 0 && (
-          <>
-            <ProgressHeader
-              step={step}
-              eyebrow="Алхам 1 · Эрх + Хэнд"
-              title="Төрсөн өдрийн мэндчилгээгээ эхлүүлээрэй"
-            />
-            <section className="birthday-promo">
-              <span className="birthday-promo-icon">
-                <CakeSlice size={29} />
-              </span>
-              <div>
-                <small>Нэг удаагийн эрх</small>
-                <h2>Нэг хүнд, нэг онцгой мэндчилгээ</h2>
-                <p>QPay төлбөр баталгаажмагц эрхийн код гарна. Кодоо идэвхжүүлээд story мэндчилгээгээ бүтээнэ.</p>
-              </div>
-              <div className="birthday-promo-price">
-                <span>9,900₮</span>
-                <strong>{greetingPrice.toLocaleString("mn-MN")}₮</strong>
-                <Button
-                  icon={<CreditCard size={18} />}
-                  onClick={() => {
-                    setShowPayment(true);
-                    if (draft.paymentStatus === "UNPAID") transition("start-payment");
+      <main className="studio-canvas">
+        <PaperDecor />
+        <section className="creator-sheet">
+          <header className="sheet-heading">
+            <span>mend scrapbook · {String(step + 1).padStart(2, "0")}</span>
+            <h1>
+              {[
+                "Хэнд зориулж байна?",
+                "Дурсамжаа цуглуулъя",
+                "Бэлгүүдээ чимэглэе",
+                "Бэлэн боллоо",
+              ][step]}
+            </h1>
+          </header>
+
+          {step === 0 && (
+            <div className="creator-form">
+              <section className={`code-strip ${draft.accessCodeApplied ? "valid" : ""}`}>
+                <span><KeyRound size={21} /></span>
+                <div>
+                  <strong>Бүтээх эрхийн код</strong>
+                  <small>Test code: {demoAccessCode}</small>
+                </div>
+                <input
+                  value={codeInput}
+                  onChange={(event) => {
+                    setCodeInput(event.target.value.toUpperCase());
+                    setCodeFeedback("");
                   }}
+                  placeholder="MEND-XXXXXX"
+                />
+                <Button
+                  variant="secondary"
+                  icon={<BadgeCheck size={17} />}
+                  disabled={!codeInput.trim() || draft.accessCodeApplied}
+                  onClick={redeemCode}
                 >
-                  QPay эрх авах
+                  {draft.accessCodeApplied ? "Идэвхтэй" : "Шалгах"}
                 </Button>
-              </div>
-            </section>
-            <div className="editor-layout">
-              <div className="editor-column form-stack">
-                <section
-                  className={`access-panel ${
-                    draft.accessCodeApplied ? "access-ok" : codeFeedback ? "access-bad" : ""
-                  }`}
-                >
-                  <div className="access-panel-head">
-                    <span><KeyRound size={20} /></span>
-                    <div>
-                      <strong>Урилга үүсгэх эрхийн код</strong>
-                      <small>1 код = 1 төрсөн өдрийн мэндчилгээ</small>
-                    </div>
-                  </div>
-                  <div className="access-entry">
-                    <input
-                      value={codeInput}
-                      maxLength={20}
-                      onChange={(event) => {
-                        setCodeInput(event.target.value.toUpperCase());
-                        setCodeFeedback("");
-                      }}
-                      placeholder="MEND-XXXXXX"
-                    />
-                    <Button
-                      variant="secondary"
-                      icon={<BadgeCheck size={18} />}
-                      disabled={!codeInput.trim() || draft.accessCodeApplied}
-                      onClick={redeemCode}
-                    >
-                      {draft.accessCodeApplied ? "Идэвхтэй" : "Код шалгах"}
-                    </Button>
-                  </div>
-                  <p className={draft.accessCodeApplied ? "ok" : codeFeedback ? "bad" : ""}>
-                    {draft.accessCodeApplied
-                      ? "Эрх идэвхжлээ. Одоо мэндчилгээгээ бүтээж болно."
-                      : codeFeedback || "Кодгүй бол дээрх QPay товчоор эрхээ аваарай."}
-                  </p>
-                  <div className="access-steps" aria-label="Эрх авах алхам">
-                    <span>1. Төлөх</span>
-                    <span>2. Код авах</span>
-                    <span>3. Идэвхжүүлэх</span>
-                  </div>
-                </section>
-                <div className="two-fields name-fields">
-                  <label>
-                    <FieldLabel>Хүлээн авагчийн нэр</FieldLabel>
-                    <input
-                      value={draft.recipientName}
-                      maxLength={40}
-                      onChange={(event) =>
-                        update({ recipientName: sanitizePlainText(event.target.value, 40) })
-                      }
-                      placeholder="Жишээ нь: Ану"
-                    />
-                  </label>
-                  <label>
-                    <FieldLabel>Илгээгчийн нэр</FieldLabel>
-                    <input
-                      value={draft.senderName}
-                      maxLength={40}
-                      onChange={(event) =>
-                        update({ senderName: sanitizePlainText(event.target.value, 40) })
-                      }
-                      placeholder="Таны нэр"
-                    />
-                  </label>
-                </div>
-                <ChoiceGroup
-                  label="Насны ангилал"
-                  value={draft.ageGroup}
-                  options={ageGroups}
-                  onChange={(value) => update({ ageGroup: value })}
-                />
-                <ChoiceGroup
-                  label="Та хоёрын харилцаа"
-                  value={draft.relationship}
-                  options={relationships}
-                  onChange={(value) => update({ relationship: value })}
-                />
-                <ChoiceGroup
-                  label="Мэргэжил"
-                  optional
-                  value={draft.profession}
-                  options={professions}
-                  onChange={(value) => update({ profession: value })}
-                />
-                <ChoiceGroup
-                  label="Мэндчилгээний өнгө аяс"
-                  value={draft.mood}
-                  options={moods}
-                  onChange={(value) => update({ mood: value })}
-                />
-              </div>
-              <aside className="recommendation-note">
-                <WandSparkles size={24} />
-                <h3>Сонголт бүр илүү оновчтой болгоно</h3>
-                <p>
-                  Мэргэжил, өнгө аяс, нас, харилцааг нийлүүлж хамгийн тохирох
-                  загваруудыг эрэмбэлнэ.
-                </p>
-                <div className="tag-preview">
-                  {[draft.profession, draft.relationship, draft.mood, draft.ageGroup]
-                    .filter(Boolean)
-                    .map((item, index) => (
-                      <span key={`${item}-${index}`}>{item}</span>
-                    ))}
-                </div>
-              </aside>
-            </div>
-          </>
-        )}
+                {codeFeedback && <p>{codeFeedback}</p>}
+              </section>
 
-        {step === 1 && (
-          <>
-            <ProgressHeader
-              step={step}
-              eyebrow="Алхам 2 · Загвар + Дуу"
-              title="Харагдах, сонсогдох мэдрэмжээ сонгоорой"
-            />
-            <div className="template-grid">
-              {sortedTemplates.map((item, index) => (
-                <article
-                  className={`template-card ${draft.templateId === item.id ? "selected" : ""}`}
-                  key={item.id}
-                >
-                  <button type="button" onClick={() => update({ templateId: item.id })}>
-                    <div className="template-image">
-                      <img src={item.image} alt="" />
-                      {index === 0 && <span className="best-match">Хамгийн тохирох</span>}
-                      {item.animated && (
-                        <span className="animation-mark">
-                          <Play size={13} fill="currentColor" /> Animation
-                        </span>
-                      )}
-                    </div>
-                    <div className="template-body">
-                      <div>
-                        <small>{item.eyebrow}</small>
-                        <h2>{item.name}</h2>
-                      </div>
-                      <span className="story-count">{item.storyCount} story</span>
-                      <p>{item.description}</p>
-                      <div className="template-tags">
-                        {item.tags.moods.slice(0, 2).map((tag) => (
-                          <span key={tag}>{tag}</span>
-                        ))}
-                      </div>
-                      <div className="template-select-row">
-                        <span>{draft.templateId === item.id ? "Сонгогдсон" : "Сонгох"}</span>
-                        {draft.templateId === item.id ? (
-                          <CheckCircle2 size={20} />
-                        ) : (
-                          <ArrowRight size={19} />
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                </article>
-              ))}
+              <div className="field-grid">
+                <label>
+                  <span>Хүлээн авагч</span>
+                  <input
+                    value={draft.recipientName}
+                    maxLength={40}
+                    onChange={(event) =>
+                      update({ recipientName: sanitizePlainText(event.target.value, 40) })
+                    }
+                    placeholder="Жишээ нь: Ану"
+                  />
+                </label>
+                <label>
+                  <span>Илгээгч</span>
+                  <input
+                    value={draft.senderName}
+                    maxLength={40}
+                    onChange={(event) =>
+                      update({ senderName: sanitizePlainText(event.target.value, 40) })
+                    }
+                    placeholder="Таны нэр"
+                  />
+                </label>
+              </div>
+              <ChoiceGroup label="Насны ангилал" value={draft.ageGroup} options={ageGroups} onChange={(value) => update({ ageGroup: value })} />
+              <ChoiceGroup label="Та хоёрын харилцаа" value={draft.relationship} options={relationships} onChange={(value) => update({ relationship: value })} />
+              <ChoiceGroup label="Мэндчилгээний мэдрэмж" value={draft.mood} options={moods} onChange={(value) => update({ mood: value })} />
             </div>
-            <section className="creator-music-picker">
-              <div>
-                <span><Music2 size={19} /></span>
-                <div>
-                  <strong>Мэндчилгээний аялгуу</strong>
-                  <small>Story нээгдэх үед аяархан тоглоно</small>
-                </div>
-              </div>
-              <div className="music-options">
-                {[
-                  ["sunny-days", "Sunny days", "02:24"],
-                  ["warm-memory", "Warm memory", "01:58"],
-                  ["none", "Хөгжимгүй", "—"],
-                ].map(([id, name, duration]) => (
-                  <button
-                    type="button"
-                    key={id}
-                    className={draft.musicId === id ? "selected" : ""}
-                    onClick={() => update({ musicId: id })}
-                  >
-                    <span className="music-icon">
-                      {id === "none" ? <VolumeX size={18} /> : <Music2 size={18} />}
-                    </span>
-                    <span>
-                      <strong>{name}</strong>
-                      <small>{duration}</small>
-                    </span>
-                    {draft.musicId === id && <CheckCircle2 size={18} />}
-                  </button>
-                ))}
-              </div>
-            </section>
-          </>
-        )}
+          )}
 
-        {step === 2 && (
-          <>
-            <ProgressHeader
-              step={step}
-              eyebrow="Алхам 3 · Зураг + Захиа"
-              title="Дурсамж, хэлэх үгээ нэмээрэй"
-            />
-            <div className="editor-layout personal-layout">
-              <div className="editor-column form-stack">
-                <div>
-                  <FieldLabel>Үндсэн зураг</FieldLabel>
-                  <input
-                    ref={fileRef}
-                    className="visually-hidden"
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.webp"
-                    onChange={handleImage}
-                  />
-                  {draft.primaryPhoto ? (
-                    <div className="photo-editor">
-                      <img src={draft.primaryPhoto} alt="Оруулсан үндсэн зураг" />
-                      <div>
-                        <IconButton label="Зургийг солих" onClick={() => fileRef.current?.click()}>
-                          <RefreshCw size={18} />
-                        </IconButton>
-                        <IconButton label="Зургийг арилгах" onClick={() => update({ primaryPhoto: "" })}>
-                          <X size={18} />
-                        </IconButton>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="upload-zone"
-                      onClick={() => fileRef.current?.click()}
-                    >
-                      <span>
-                        <ImagePlus size={25} />
-                      </span>
-                      <strong>Зураг оруулах</strong>
-                      <small>JPG, PNG, WEBP · 8MB хүртэл</small>
-                    </button>
-                  )}
-                  {uploadError && <p className="field-error">{uploadError}</p>}
-                </div>
-                <label>
-                  <FieldLabel optional>Хүлээн авагчийн нас</FieldLabel>
-                  <input
-                    type="number"
-                    min="1"
-                    max="120"
-                    value={draft.recipientAge}
-                    onChange={(event) => update({ recipientAge: event.target.value })}
-                    placeholder="Жишээ нь: 27"
-                  />
-                </label>
-                <fieldset className="segmented-field">
-                  <FieldLabel>Илгээгчийн нэр хэзээ харагдах вэ?</FieldLabel>
-                  <div className="segmented-control">
-                    {[
-                      ["START", "Эхнээс"],
-                      ["END", "Төгсгөлд"],
-                      ["ANONYMOUS", "Нууц"],
-                    ].map(([value, label]) => (
-                      <button
-                        type="button"
-                        className={draft.senderVisibility === value ? "selected" : ""}
-                        onClick={() =>
-                          update({
-                            senderVisibility: value as GreetingDraft["senderVisibility"],
-                          })
-                        }
-                        key={value}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-                <label>
-                  <FieldLabel optional>Богино гарчиг</FieldLabel>
-                  <input
-                    value={draft.headline}
-                    maxLength={80}
-                    onChange={(event) =>
-                      update({ headline: sanitizePlainText(event.target.value, 80) })
-                    }
-                    placeholder={`Төрсөн өдрийн мэнд, ${draft.recipientName || "Энхээ"}!`}
-                  />
-                </label>
-                <label>
-                  <FieldLabel>Мэндчилгээний текст</FieldLabel>
-                  <textarea
-                    rows={7}
-                    maxLength={1000}
-                    value={draft.greetingText}
-                    onChange={(event) =>
-                      update({ greetingText: sanitizePlainText(event.target.value, 1000) })
-                    }
-                    placeholder="Чамд хэлэх хамгийн гоё үгээ энд бичээрэй..."
-                  />
-                  <span className="character-count">{draft.greetingText.length} / 1000</span>
-                </label>
-                <div className="quick-copy">
-                  <span>Бэлэн санаа</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      update({
-                        greetingText: `${draft.recipientName || "Чамдаа"} төрсөн өдрийн мэнд хүргэе! Инээмсэглэл, аз жаргал, шинэ дурсамжаар дүүрэн гайхалтай жил байг.`,
-                      })
-                    }
-                  >
-                    Дулаан мэндчилгээ
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      update({
-                        greetingText: `Өнөөдөр бол чиний тайз! Хүслээ томоор бодож, бялуугаа харамгүй идээрэй. Төрсөн өдрийн мэнд!`,
-                      })
-                    }
-                  >
-                    Хөгжилтэй
-                  </button>
-                </div>
-                <label>
-                  <FieldLabel optional>Нууц захиа</FieldLabel>
-                  <textarea
-                    rows={3}
-                    maxLength={500}
-                    value={draft.secretMessage}
-                    onChange={(event) =>
-                      update({ secretMessage: sanitizePlainText(event.target.value, 500) })
-                    }
-                    placeholder="Story-ийн төгсгөлд нээгдэх нууц захиа..."
-                  />
-                </label>
-                <ChoiceGroup
-                  label="Баярын эффект"
-                  value={draft.effectId}
-                  options={["confetti", "balloon", "sparkle", "hearts", "none"]}
-                  onChange={(value) => update({ effectId: value })}
-                />
-              </div>
-              <aside className="preview-aside">
-                <span className="aside-label">Шууд preview</span>
-                <PhonePreview draft={draft} compact />
-              </aside>
-            </div>
-          </>
-        )}
-
-        {step === 3 && (
-          <>
-            <ProgressHeader
-              step={step}
-              eyebrow="Алхам 4 · Preview + Илгээх"
-              title={
-                draft.greetingStatus === "PUBLISHED"
-                  ? "Мэндчилгээний линк бэлэн боллоо"
-                  : "Бүгдийг шалгаад линкээ үүсгээрэй"
-              }
-            />
-            {draft.greetingStatus !== "PUBLISHED" ? (
-              <div className="final-editor-layout">
-                <section className="final-preview-pane">
-                  <div className="final-preview-label">
-                    <span><Sparkles size={17} /></span>
-                    <div>
-                      <strong>Хүлээн авагч ингэж харна</strong>
-                      <small>Story preview</small>
-                    </div>
-                  </div>
-                  <PhonePreview draft={draft} />
-                </section>
-                <aside className="final-publish-panel">
-                  <div className="readiness-score">
-                    <span>{ready ? "100%" : "72%"}</span>
-                    <div>
-                      <strong>{ready ? "Линк үүсгэхэд бэлэн" : "Хэдхэн зүйл дутуу байна"}</strong>
-                      <small>Мэндчилгээний шалгах жагсаалт</small>
-                    </div>
-                  </div>
-                  {[
-                    ["Эрхийн код идэвхтэй", Boolean(draft.accessCodeApplied), 0],
-                    ["Загвар ба дуу сонгосон", Boolean(draft.templateId && draft.musicId), 1],
-                    ["Хүлээн авагчийн зураг", Boolean(draft.primaryPhoto), 2],
-                    ["Мэндчилгээний захиа", Boolean(draft.greetingText.trim()), 2],
-                    ["Хүлээн авагч, илгээгчийн нэр", Boolean(draft.recipientName.trim() && draft.senderName.trim()), 0],
-                  ].map(([label, done, targetStep]) => (
-                    <div className={`check-row ${done ? "done" : ""}`} key={String(label)}>
-                      {done ? <CheckCircle2 size={19} /> : <Clock3 size={19} />}
-                      <span>{label}</span>
-                      {!done && <button onClick={() => goToStep(Number(targetStep))}>Засах</button>}
-                    </div>
-                  ))}
-                  <div className="compact-privacy-settings">
-                    {[
-                      ["allowReply", "Хариу хүлээн авах"],
-                      ["allowShare", "Хуваалцахыг зөвшөөрөх"],
-                      ["requirePin", "PIN хамгаалалт"],
-                    ].map(([key, title]) => (
-                      <label className="toggle-row" key={key}>
-                        <span><strong>{title}</strong></span>
-                        <input
-                          type="checkbox"
-                          checked={Boolean(draft[key as keyof GreetingDraft])}
-                          onChange={(event) => update({ [key]: event.target.checked })}
-                        />
-                        <i />
-                      </label>
-                    ))}
-                    {draft.requirePin && (
-                      <label className="pin-field">
-                        <FieldLabel>4 оронтой PIN</FieldLabel>
-                        <input
-                          inputMode="numeric"
-                          maxLength={4}
-                          value={draft.pin}
-                          onChange={(event) =>
-                            update({ pin: event.target.value.replace(/\D/g, "").slice(0, 4) })
-                          }
-                          placeholder="0000"
-                        />
-                      </label>
-                    )}
-                  </div>
-                  <div className="publish-summary">
-                    <BadgeCheck size={21} />
-                    <div>
-                      <strong>Эрхийн код: {draft.accessCodeApplied ? "Идэвхтэй" : "Идэвхгүй"}</strong>
-                      <span>Мэндчилгээ 30 хоног нээлттэй байна.</span>
-                    </div>
+          {step === 1 && (
+            <div className="creator-form">
+              <section className="memory-uploader">
+                <div className="field-title">
+                  <div>
+                    <strong>Дурсамжийн зургууд</strong>
+                    <span>{(draft.memoryPhotos ?? []).length} / 6 зураг</span>
                   </div>
                   <Button
-                    icon={<Send size={18} />}
-                    disabled={!ready || !draft.accessCodeApplied}
-                    onClick={() => transition("publish")}
+                    variant="secondary"
+                    icon={<ImagePlus size={17} />}
+                    onClick={() => fileRef.current?.click()}
                   >
-                    Линк үүсгэх
+                    Зураг нэмэх
                   </Button>
-                  {!ready && (
-                    <small className="payment-warning">Дутуу мэдээллээ гүйцээгээд дахин оролдоно уу.</small>
-                  )}
-                </aside>
-              </div>
-            ) : (
-              <div className="published-layout birthday-published">
-                <section className="published-cover">
-                  <img src={draft.primaryPhoto || template?.image || defaultPhoto} alt="" />
-                  <div>
-                    <span>Танд мэндчилгээ ирлээ</span>
-                    <h2>{draft.recipientName}</h2>
-                    <p>{draft.headline || "Төрсөн өдрийн мэнд!"}</p>
-                  </div>
-                </section>
-                <section className="share-panel">
-                  <span className="success-mark"><Check size={27} /></span>
-                  <small className="share-kicker">Бэлэн боллоо</small>
-                  <h2>Онцгой мөчийг нь эхлүүлээрэй</h2>
-                  <p>Линкээ Messenger, Instagram эсвэл хүссэн чатаараа илгээнэ.</p>
-                  <div className="share-link">
-                    <span>{shareUrl}</span>
-                    <IconButton label="Линк хуулах" onClick={copyLink}>
-                      <Copy size={18} />
-                    </IconButton>
-                  </div>
-                  <div className="share-actions">
-                    <Button icon={<Share2 size={18} />} onClick={copyLink}>
-                      Линк хуулах
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      icon={<Eye size={18} />}
-                      onClick={() => onRoleChange("recipient")}
-                    >
-                      Нээж үзэх
-                    </Button>
-                  </div>
-                  {qrData && <img className="qr-image" src={qrData} alt="Мэндчилгээний QR код" />}
-                </section>
-              </div>
-            )}
-          </>
-        )}
-
-        {step === 4 && (
-          <>
-            <ProgressHeader
-              step={step}
-              eyebrow="Алхам 5 · Бүгдийг нэг дор"
-              title="Recipient юу харахыг шалгаарай"
-            />
-            <div className="preview-stage">
-              <PhonePreview draft={draft} />
-              <aside className="readiness-panel">
-                <div className="readiness-score">
-                  <span>{ready ? "100%" : "72%"}</span>
-                  <div>
-                    <strong>{ready ? "Нийтлэхэд бэлэн" : "Хэдхэн зүйл дутуу байна"}</strong>
-                    <small>Шалгах жагсаалт</small>
-                  </div>
                 </div>
-                {[
-                  ["Загвар сонгосон", Boolean(draft.templateId)],
-                  ["Хүлээн авагчийн нэр", Boolean(draft.recipientName.trim())],
-                  ["Үндсэн зураг", Boolean(draft.primaryPhoto)],
-                  ["Мэндчилгээний текст", Boolean(draft.greetingText.trim())],
-                  ["Илгээгчийн нэр", Boolean(draft.senderName.trim())],
-                  ["Нууцлалын тохиргоо", true],
-                ].map(([label, done]) => (
-                  <div className={`check-row ${done ? "done" : ""}`} key={String(label)}>
-                    {done ? <CheckCircle2 size={19} /> : <Clock3 size={19} />}
-                    <span>{label}</span>
-                    {!done && <button onClick={() => goToStep(label === "Загвар сонгосон" ? 1 : 2)}>Засах</button>}
-                  </div>
-                ))}
-                <div className="privacy-summary">
-                  <LockKeyhole size={18} />
-                  <div>
-                    <strong>Хувийн агуулга хамгаалагдсан</strong>
-                    <span>Download анхнаасаа хаалттай.</span>
-                  </div>
-                </div>
-              </aside>
-            </div>
-          </>
-        )}
-
-        {step === 5 && (
-          <>
-            <ProgressHeader
-              step={step}
-              eyebrow="Алхам 6 · Сүүлчийн алхам"
-              title={draft.greetingStatus === "PUBLISHED" ? "Мэндчилгээ бэлэн боллоо" : "Идэвхжүүлээд хуваалцах"}
-            />
-            {draft.greetingStatus !== "PUBLISHED" ? (
-              <div className="checkout-layout">
-                <section className="checkout-main">
-                  <div className="order-product">
-                    <img src={template?.image || templates[0].image} alt="" />
-                    <div>
-                      <small>Дижитал story мэндчилгээ</small>
-                      <h2>{template?.name || "Сонгосон загвар"}</h2>
-                      <span>{draft.recipientName || "Хүлээн авагч"}-д</span>
-                    </div>
-                    <strong>9,900₮</strong>
-                  </div>
-                  <div className="privacy-settings">
-                    <h3>Нууцлал ба зөвшөөрөл</h3>
-                    {[
-                      ["allowReply", "Хариу илгээх", "Recipient богино хариу илгээж болно"],
-                      ["allowShare", "Хуваалцах", "Share sheet болон social cover ашиглана"],
-                      ["allowDownload", "Зураг татах", "Хувийн media татах эрх олгоно"],
-                      ["requirePin", "PIN хамгаалалт", "Link нээхэд 4 оронтой PIN асууна"],
-                    ].map(([key, title, description]) => (
-                      <label className="toggle-row" key={key}>
-                        <span>
-                          <strong>{title}</strong>
-                          <small>{description}</small>
-                        </span>
-                        <input
-                          type="checkbox"
-                          checked={Boolean(draft[key as keyof GreetingDraft])}
-                          onChange={(event) => update({ [key]: event.target.checked })}
-                        />
-                        <i />
-                      </label>
+                <input
+                  ref={fileRef}
+                  className="visually-hidden"
+                  type="file"
+                  multiple
+                  accept=".jpg,.jpeg,.png,.webp"
+                  onChange={handleImages}
+                />
+                {(draft.memoryPhotos ?? []).length ? (
+                  <div className="memory-editor-grid">
+                    {draft.memoryPhotos.map((photo, index) => (
+                      <div className={draft.primaryPhoto === photo ? "cover" : ""} key={`${photo.slice(0, 30)}-${index}`}>
+                        <img src={photo} alt={`Дурсамж ${index + 1}`} />
+                        <button type="button" onClick={() => update({ primaryPhoto: photo })}>
+                          {draft.primaryPhoto === photo ? <Check size={14} /> : <Star size={14} />}
+                        </button>
+                        <button type="button" onClick={() => removePhoto(index)}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     ))}
-                    {draft.requirePin && (
-                      <label className="pin-field">
-                        <FieldLabel>4 оронтой PIN</FieldLabel>
-                        <input
-                          inputMode="numeric"
-                          maxLength={4}
-                          value={draft.pin}
-                          onChange={(event) =>
-                            update({ pin: event.target.value.replace(/\D/g, "").slice(0, 4) })
-                          }
-                          placeholder="0000"
-                        />
-                      </label>
-                    )}
                   </div>
-                </section>
-                <aside className="payment-panel">
-                  <div className="price-row">
-                    <span>Нэг удаагийн төлбөр</span>
-                    <strong>9,900₮</strong>
-                  </div>
-                  <p>30 хоног идэвхтэй · Нууц link · Reaction ба reply</p>
-                  {draft.paymentStatus === "UNPAID" && (
-                    <Button
-                      icon={<QrCode size={18} />}
-                      disabled={!ready}
-                      onClick={() => {
-                        setShowPayment(true);
-                        transition("start-payment");
-                      }}
-                    >
-                      Идэвхжүүлэх
-                    </Button>
-                  )}
-                  {draft.paymentStatus === "PENDING" && (
-                    <Button
-                      icon={<RefreshCw size={18} />}
-                      onClick={() => setShowPayment(true)}
-                    >
-                      Төлбөр шалгах
-                    </Button>
-                  )}
-                  {draft.paymentStatus === "SUCCESS" && (
-                    <Button icon={<Send size={18} />} onClick={() => transition("publish")}>
-                      Нийтлэх
-                    </Button>
-                  )}
-                  {!ready && <small className="payment-warning">Preview checklist-ээ гүйцээнэ үү.</small>}
-                  <div className="secure-note">
-                    <ShieldCheck size={18} />
-                    <span>Төлбөр ба draft тусдаа төлөвөөр хадгалагдана.</span>
-                  </div>
-                </aside>
-              </div>
-            ) : (
-              <div className="published-layout">
-                <section className="published-cover">
-                  <img src={draft.primaryPhoto || template?.image || defaultPhoto} alt="" />
-                  <div>
-                    <span>Танд мэндчилгээ ирлээ</span>
-                    <h2>{draft.recipientName}</h2>
-                    <p>{draft.headline || "Төрсөн өдрийн мэнд!"}</p>
-                  </div>
-                </section>
-                <section className="share-panel">
-                  <span className="success-mark">
-                    <Check size={27} />
-                  </span>
-                  <h2>Амжилттай нийтэллээ</h2>
-                  <p>Link-ээ илгээхэд л онцгой мөч эхэлнэ.</p>
-                  <div className="share-link">
-                    <span>{shareUrl}</span>
-                    <IconButton label="Линк хуулах" onClick={copyLink}>
-                      <Copy size={18} />
-                    </IconButton>
-                  </div>
-                  <div className="share-actions">
-                    <Button icon={<Share2 size={18} />} onClick={copyLink}>
-                      Link хуулах
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      icon={<Eye size={18} />}
-                      onClick={() => onRoleChange("recipient")}
-                    >
-                      Recipient view
-                    </Button>
-                  </div>
-                  {qrData && <img className="qr-image" src={qrData} alt="Мэндчилгээний QR код" />}
-                </section>
-              </div>
-            )}
-          </>
-        )}
+                ) : (
+                  <button type="button" className="empty-upload" onClick={() => fileRef.current?.click()}>
+                    <Camera size={28} />
+                    <strong>Зургаа энд нэмээрэй</strong>
+                    <span>Эхний зураг birthday cover болно</span>
+                  </button>
+                )}
+                {uploadError && <p className="form-error">{uploadError}</p>}
+              </section>
 
-        <div className="creator-actions">
-          <Button
-            variant="ghost"
-            icon={<ArrowLeft size={18} />}
-            disabled={step === 0}
-            onClick={() => goToStep(step - 1)}
-          >
-            Буцах
-          </Button>
-          {step < 3 && (
-            <Button
-              icon={<ArrowRight size={18} />}
-              disabled={!stepCanContinue}
-              onClick={() => goToStep(step + 1)}
-            >
-              Үргэлжлүүлэх
-            </Button>
+              <label className="text-field">
+                <span>Cover гарчиг</span>
+                <input
+                  value={draft.headline}
+                  maxLength={80}
+                  onChange={(event) => update({ headline: sanitizePlainText(event.target.value, 80) })}
+                  placeholder={`Төрсөн өдрийн мэнд, ${draft.recipientName || "Ану"}!`}
+                />
+              </label>
+              <label className="text-field">
+                <span>Сэтгэлийн захиа</span>
+                <textarea
+                  rows={7}
+                  maxLength={1000}
+                  value={draft.greetingText}
+                  onChange={(event) => update({ greetingText: sanitizePlainText(event.target.value, 1000) })}
+                  placeholder="Хамгийн сайхан дурсамж, хүсэл, ерөөлөө бичээрэй..."
+                />
+                <small>{draft.greetingText.length} / 1000</small>
+              </label>
+              <label className="text-field">
+                <span>Төгсгөлийн богино үг</span>
+                <textarea
+                  rows={3}
+                  maxLength={500}
+                  value={draft.secretMessage}
+                  onChange={(event) => update({ secretMessage: sanitizePlainText(event.target.value, 500) })}
+                  placeholder="Энэ жил чамд хамгийн гоё зүйлс ирээсэй."
+                />
+              </label>
+            </div>
           )}
-        </div>
+
+          {step === 2 && (
+            <div className="creator-form">
+              <section className="palette-section">
+                <div className="field-title">
+                  <div>
+                    <strong>Scrapbook өнгө</strong>
+                    <span>Нэг загвар, гурван мэдрэмж</span>
+                  </div>
+                </div>
+                <div className="palette-list">
+                  {templates.map((template) => (
+                    <button
+                      type="button"
+                      className={draft.templateId === template.id ? "selected" : ""}
+                      onClick={() => update({ templateId: template.id })}
+                      key={template.id}
+                    >
+                      <span style={{ background: template.background }}>
+                        <i style={{ background: template.accent }} />
+                      </span>
+                      <div>
+                        <strong>{template.name}</strong>
+                        <small>{template.eyebrow}</small>
+                      </div>
+                      {draft.templateId === template.id && <CheckCircle2 size={18} />}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="gift-builder">
+                <div className="field-title">
+                  <div>
+                    <strong>Нээгдэх 3 бэлэг</strong>
+                    <span>Дурсамж · Захиа · Дуу</span>
+                  </div>
+                </div>
+                <div className="gift-row">
+                  <div><Camera /><strong>Дурсамж</strong><span>{draft.memoryPhotos.length || 0} зураг</span></div>
+                  <div><Mail /><strong>Захиа</strong><span>{draft.greetingText ? "Бэлэн" : "Хоосон"}</span></div>
+                  <div><CassetteTape /><strong>Дуу</strong><span>{draft.musicId === "none" ? "Хаалттай" : "Бэлэн"}</span></div>
+                </div>
+              </section>
+
+              <section className="music-section">
+                <div className="field-title">
+                  <div>
+                    <strong>Аялгуу</strong>
+                    <span>Recipient нээхдээ асаана</span>
+                  </div>
+                </div>
+                <div className="music-list">
+                  {musicOptions.map(([id, name, note]) => (
+                    <button
+                      type="button"
+                      className={draft.musicId === id ? "selected" : ""}
+                      onClick={() => update({ musicId: id })}
+                      key={id}
+                    >
+                      <span>{id === "none" ? <VolumeX size={19} /> : <Music2 size={19} />}</span>
+                      <div><strong>{name}</strong><small>{note}</small></div>
+                      {draft.musicId === id && <Check size={16} />}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <div className="simple-toggles">
+                <label>
+                  <span><strong>Хариу авах</strong><small>Recipient богино хариу илгээнэ</small></span>
+                  <input type="checkbox" checked={draft.allowReply} onChange={(event) => update({ allowReply: event.target.checked })} />
+                  <i />
+                </label>
+                <label>
+                  <span><strong>Хуваалцах</strong><small>Link-ийг бусдад дамжуулж болно</small></span>
+                  <input type="checkbox" checked={draft.allowShare} onChange={(event) => update({ allowShare: event.target.checked })} />
+                  <i />
+                </label>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="creator-form">
+              {draft.greetingStatus === "PUBLISHED" ? (
+                <section className="publish-success">
+                  <span><Check size={28} /></span>
+                  <small>Бэлэн боллоо</small>
+                  <h2>{draft.recipientName}-д зориулсан scrapbook</h2>
+                  <p>Link-ийг илгээхэд анааш бэлгүүдийг нь нэг нэгээр нээнэ.</p>
+                  <div className="share-box">
+                    <span>{shareUrl}</span>
+                    <IconButton label="Линк хуулах" onClick={copyLink}><Copy size={18} /></IconButton>
+                  </div>
+                  <div className="share-buttons">
+                    <Button icon={<Share2 size={18} />} onClick={copyLink}>Link хуулах</Button>
+                    <Button variant="secondary" icon={<Eye size={18} />} onClick={() => onRoleChange("recipient")}>Нээж үзэх</Button>
+                  </div>
+                  {qrData && <img className="share-qr" src={qrData} alt="Мэндчилгээний QR код" />}
+                </section>
+              ) : (
+                <>
+                  <section className="ready-list">
+                    {[
+                      ["Эрхийн код", draft.accessCodeApplied, 0],
+                      ["Нэр ба харилцаа", Boolean(draft.recipientName && draft.senderName && draft.relationship), 0],
+                      ["Дурсамжийн зураг", Boolean(draft.primaryPhoto), 1],
+                      ["Сэтгэлийн захиа", Boolean(draft.greetingText), 1],
+                      ["Scrapbook өнгө", Boolean(draft.templateId), 2],
+                    ].map(([label, done, target]) => (
+                      <button type="button" onClick={() => !done && goToStep(Number(target))} key={String(label)}>
+                        <span className={done ? "done" : ""}>{done ? <Check size={15} /> : <span />}</span>
+                        <strong>{label}</strong>
+                        <small>{done ? "Бэлэн" : "Нэмэх"}</small>
+                      </button>
+                    ))}
+                  </section>
+                  <section className="publish-panel">
+                    <div>
+                      <small>Нэг удаагийн эрх</small>
+                      <strong>6,900₮</strong>
+                    </div>
+                    <p><LockKeyhole size={17} />30 хоногийн нууц link</p>
+                    {draft.paymentStatus === "UNPAID" && (
+                      <Button
+                        icon={<QrCode size={18} />}
+                        onClick={() => {
+                          setShowPayment(true);
+                          transition("start-payment");
+                        }}
+                      >
+                        QPay идэвхжүүлэх
+                      </Button>
+                    )}
+                    {draft.paymentStatus === "PENDING" && (
+                      <Button icon={<RefreshCw size={18} />} onClick={() => setShowPayment(true)}>
+                        Төлбөр шалгах
+                      </Button>
+                    )}
+                    {draft.paymentStatus === "SUCCESS" && (
+                      <Button icon={<Send size={18} />} disabled={!ready || !draft.accessCodeApplied} onClick={() => transition("publish")}>
+                        Нийтлэх
+                      </Button>
+                    )}
+                  </section>
+                </>
+              )}
+            </div>
+          )}
+
+          <footer className="sheet-actions">
+            <Button variant="ghost" icon={<ArrowLeft size={18} />} disabled={step === 0} onClick={() => goToStep(step - 1)}>
+              Буцах
+            </Button>
+            {step < 3 && (
+              <Button icon={<ArrowRight size={18} />} disabled={!stepReady} onClick={() => goToStep(step + 1)}>
+                Үргэлжлүүлэх
+              </Button>
+            )}
+          </footer>
+        </section>
+
+        <aside className="creator-preview">
+          <span>recipient preview</span>
+          <MiniPreview draft={draft} />
+          <button type="button" onClick={() => onRoleChange("recipient")}>
+            <Eye size={17} /> Бүтнээр нээх
+          </button>
+        </aside>
       </main>
 
       {showPayment && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowPayment(false)}>
-          <div className="payment-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
-            <IconButton label="Хаах" onClick={() => setShowPayment(false)}>
-              <X size={19} />
-            </IconButton>
-            <span className="qpay-mark">Q</span>
-            {draft.paymentStatus === "SUCCESS" && draft.accessCode ? (
-              <>
-                <small className="payment-mode">Төлбөр амжилттай</small>
-                <h2>Таны эрхийн код бэлэн</h2>
-                <p>Энэ код нэг мэндчилгээнд нэг удаа ашиглагдана.</p>
-                <div className="payment-code">{draft.accessCode}</div>
-                <Button
-                  icon={<KeyRound size={18} />}
-                  onClick={() => {
-                    setCodeInput(draft.accessCode);
-                    setShowPayment(false);
-                  }}
-                >
-                  Кодоо ашиглах
-                </Button>
-              </>
-            ) : (
-              <>
-                <small className="payment-mode">Туршилтын QPay</small>
-                <h2>Мэндчилгээний эрх авах</h2>
-                <p>QR-аа уншуулаад төлбөр амжилттай болмогц нэг удаагийн код гарна.</p>
-                <div className="fake-qr">
-                  <QrCode size={132} strokeWidth={1.2} />
-                </div>
-                <div className="qpay-apps" aria-label="Төлбөрийн аппууд">
-                  <span>QPay</span>
-                  <span>Khan Bank</span>
-                  <span>SocialPay</span>
-                  <span>TDB</span>
-                </div>
-                <strong>{greetingPrice.toLocaleString("mn-MN")}₮</strong>
-                <Button
-                  icon={<CheckCircle2 size={18} />}
-                  onClick={() => transition("confirm-demo-payment")}
-                >
-                  Тест төлбөр баталгаажуулах
-                </Button>
-              </>
-            )}
-          </div>
+        <div className="modal-backdrop" onMouseDown={() => setShowPayment(false)}>
+          <section className="payment-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <IconButton label="Хаах" onClick={() => setShowPayment(false)}><X size={19} /></IconButton>
+            <span className="qpay-logo">Q</span>
+            <small>Туршилтын төлбөр</small>
+            <h2>Scrapbook эрх</h2>
+            <div className="fake-qr"><QrCode size={130} strokeWidth={1.2} /></div>
+            <strong>6,900₮</strong>
+            <Button
+              icon={<CheckCircle2 size={18} />}
+              onClick={async () => {
+                await transition("confirm-demo-payment");
+                setShowPayment(false);
+              }}
+            >
+              Demo төлбөр батлах
+            </Button>
+          </section>
         </div>
       )}
     </div>
@@ -1278,497 +804,404 @@ function CreatorApp({
 function RecipientApp({
   draft,
   setDraft,
+  preview,
   onRoleChange,
 }: {
   draft: GreetingDraft;
   setDraft: React.Dispatch<React.SetStateAction<GreetingDraft>>;
+  preview: boolean;
   onRoleChange: (role: Role) => void;
 }) {
-  const [opened, setOpened] = useState(false);
-  const [story, setStory] = useState(0);
+  const [screen, setScreen] = useState<RecipientScreen>("intro");
+  const [openedGifts, setOpenedGifts] = useState<string[]>([]);
   const [muted, setMuted] = useState(true);
-  const [paused, setPaused] = useState(false);
-  const [replyText, setReplyText] = useState("");
-  const [secretOpen, setSecretOpen] = useState(false);
-  const sessionId = useId();
-  const template = templates.find((item) => item.id === draft.templateId) ?? templates[0];
-  const storyTotal = draft.secretMessage ? 6 : 5;
+  const [playing, setPlaying] = useState(false);
+  const [reaction, setReaction] = useState(draft.reaction);
+  const [reply, setReply] = useState("");
+  const photos = draft.memoryPhotos?.length
+    ? draft.memoryPhotos
+    : draft.primaryPhoto
+      ? [draft.primaryPhoto, ...fallbackMemories.slice(0, 5)]
+      : fallbackMemories;
+  const theme = templates.find((item) => item.id === draft.templateId) ?? templates[0];
 
-  function localTransition(patch: Partial<GreetingDraft>) {
-    setDraft((current) => ({ ...current, ...patch, updatedAt: new Date().toISOString() }));
-  }
-
-  async function transition(
-    action: "open" | "react" | "reply",
-    extra: Record<string, string> = {},
-  ) {
+  async function recipientTransition(action: "open" | "react" | "reply", extra: Record<string, string> = {}) {
+    setDraft((current) => ({
+      ...current,
+      engagementStatus:
+        action === "reply" ? "REPLIED" : action === "react" ? "REACTED" : "OPENED",
+      reaction: extra.emoji || current.reaction,
+      reply: extra.message || current.reply,
+    }));
     try {
       await fetch("/api/greetings", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          id: draft.id,
-          action,
-          sessionId,
-          ...extra,
-        }),
+        body: JSON.stringify({ id: draft.id, action, sessionId: "recipient", ...extra }),
       });
     } catch {
-      // Recipient experience stays responsive during a temporary outage.
+      // Keep the recipient experience responsive offline.
     }
   }
 
-  if (draft.moderationStatus === "BLOCKED" || draft.greetingStatus === "BLOCKED") {
+  function openGift(name: "memories" | "letter" | "music") {
+    setOpenedGifts((current) => (current.includes(name) ? current : [...current, name]));
+    setScreen(name);
+  }
+
+  function restart() {
+    setScreen("intro");
+    setOpenedGifts([]);
+    setPlaying(false);
+  }
+
+  if (
+    !preview &&
+    (draft.moderationStatus === "BLOCKED" || draft.greetingStatus === "BLOCKED")
+  ) {
     return (
-      <div className="recipient-error">
-        <ShieldCheck size={35} />
-        <h1>Энэ агуулгыг түр үзэх боломжгүй байна.</h1>
-        <p>Мэндчилгээ хяналтын төлөвт байна.</p>
-        <Button variant="secondary" onClick={() => onRoleChange("creator")}>
-          Бүтээгчийн хэсэг
-        </Button>
+      <div className="recipient-blocked">
+        <ShieldCheck size={38} />
+        <h1>Энэ мэндчилгээг түр үзэх боломжгүй байна.</h1>
       </div>
     );
   }
 
-  if (draft.greetingStatus !== "PUBLISHED") {
-    return (
-      <div className="recipient-error">
-        <Gift size={38} />
-        <h1>Мэндчилгээ хараахан бэлэн болоогүй байна.</h1>
-        <p>Эрхийн кодоо идэвхжүүлээд мэндчилгээний линкээ үүсгээрэй.</p>
-        <Button icon={<ArrowLeft size={18} />} onClick={() => onRoleChange("creator")}>
-          Үргэлжлүүлж засах
-        </Button>
-      </div>
-    );
-  }
-
-  if (!opened) {
-    return (
-      <div className="gift-welcome" style={{ background: template.background, color: template.text }}>
-        <div className="gift-noise" />
-        <div className="welcome-controls">
-          <span>mend.</span>
-          <IconButton label={muted ? "Дуу асаах" : "Дуу хаах"} onClick={() => setMuted(!muted)}>
-            {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-          </IconButton>
-        </div>
-        <div className="gift-content">
-          <span className="gift-icon" style={{ background: template.accent }}>
-            <Gift size={62} strokeWidth={1.4} />
-          </span>
-          <p>
-            {draft.senderVisibility === "START"
-              ? `${draft.senderName}-с`
-              : draft.senderVisibility === "ANONYMOUS"
-                ? "Нууц илгээгчээс"
-                : "Таны нэг дотны хүнээс"}
-          </p>
-          <h1>Танд онцгой төрсөн өдрийн мэндчилгээ ирлээ</h1>
-          <Button
-            icon={<Sparkles size={19} />}
-            onClick={() => {
-              setOpened(true);
-              localTransition({ engagementStatus: "OPENED" });
-                    transition("open");
-            }}
-          >
-            Бэлгээ нээх
-          </Button>
-          <small>{muted ? "Дуугүй нээгдэнэ" : "Хөгжимтэй нээгдэнэ"}</small>
-        </div>
-      </div>
-    );
-  }
+  const progressIndex = {
+    intro: 0,
+    tease: 0,
+    ready: 1,
+    cover: 2,
+    gifts: 3,
+    memories: 4,
+    letter: 4,
+    music: 4,
+    finale: 5,
+  }[screen];
 
   return (
-    <div className="story-viewer" style={{ background: template.background, color: template.text }}>
-      <div className="story-bars">
-        {Array.from({ length: storyTotal }).map((_, index) => (
-          <span key={index}>
-            <i style={{ width: index < story ? "100%" : index === story ? "62%" : "0%" }} />
-          </span>
-        ))}
-      </div>
-      <div className="story-toolbar">
-        <div>
-          <span className="story-avatar" style={{ background: template.accent }}>
-            <Gift size={16} />
-          </span>
-          <span>
-            <strong>{draft.senderVisibility === "ANONYMOUS" ? "Нууц илгээгч" : draft.senderName}</strong>
-            <small>төрсөн өдрийн мэндчилгээ</small>
-          </span>
+    <main
+      className={`recipient-experience theme-${draft.templateId}`}
+      style={
+        {
+          "--theme-accent": theme.accent,
+          "--theme-bg": theme.background,
+          "--theme-text": theme.text,
+        } as React.CSSProperties
+      }
+    >
+      <PaperDecor />
+      <header className="recipient-toolbar">
+        <button type="button" className="recipient-brand" onClick={restart}>mend.</button>
+        <div className="story-progress" aria-label={`Дэлгэц ${progressIndex + 1} / 6`}>
+          {Array.from({ length: 6 }).map((_, index) => (
+            <span className={index <= progressIndex ? "active" : ""} key={index} />
+          ))}
         </div>
         <div>
-          <IconButton label={paused ? "Үргэлжлүүлэх" : "Түр зогсоох"} onClick={() => setPaused(!paused)}>
-            {paused ? <Play size={20} /> : <Pause size={20} />}
-          </IconButton>
           <IconButton label={muted ? "Дуу асаах" : "Дуу хаах"} onClick={() => setMuted(!muted)}>
-            {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
           </IconButton>
-          <IconButton label="Хаах" onClick={() => setOpened(false)}>
-            <X size={21} />
-          </IconButton>
+          <IconButton label="Дахин эхлэх" onClick={restart}><RotateCcw size={18} /></IconButton>
+          {preview && (
+            <IconButton label="Creator руу буцах" onClick={() => onRoleChange("creator")}>
+              <WandSparkles size={18} />
+            </IconButton>
+          )}
         </div>
-      </div>
+      </header>
 
-      <button
-        className="story-tap story-left"
-        aria-label="Өмнөх story"
-        onClick={() => setStory(Math.max(0, story - 1))}
-      />
-      <button
-        className="story-tap story-right"
-        aria-label="Дараагийн story"
-        onClick={() => setStory(Math.min(storyTotal - 1, story + 1))}
-      />
+      <section className={`recipient-screen screen-${screen}`}>
+        {screen === "intro" && (
+          <div className="intro-scene">
+            <p>Хөөе! Би чамд нэг зүйл бэлдсэн.</p>
+            <h1>Үзмээр байна уу?</h1>
+            <Giraffe />
+            <div className="yes-no-row">
+              <Button
+                onClick={() => {
+                  setScreen("ready");
+                  recipientTransition("open");
+                }}
+              >
+                Тийм
+              </Button>
+              <Button variant="secondary" onClick={() => setScreen("tease")}>Үгүй</Button>
+            </div>
+          </div>
+        )}
 
-      <div className="story-content">
-        {story === 0 && (
-          <div className="story-intro">
-            <span>{draft.recipientAge || "Өнөөдөр"}</span>
-            <h1>{draft.headline || `Төрсөн өдрийн мэнд, ${draft.recipientName}!`}</h1>
-            <PartyPopper size={39} style={{ color: template.accent }} />
+        {screen === "tease" && (
+          <div className="tease-scene">
+            <Giraffe />
+            <small>Өө, үнэхээр үү?</small>
+            <h1>Жаахан бодоод дахин оролдоорой.</h1>
+            <Button icon={<ArrowLeft size={18} />} onClick={() => setScreen("intro")}>Буцах</Button>
           </div>
         )}
-        {story === 1 && (
-          <div className="story-photo">
-            <img src={draft.primaryPhoto || template.image} alt={draft.recipientName} />
-            <span style={{ background: template.accent }}>Энэ өдөр чинийх</span>
+
+        {screen === "ready" && (
+          <div className="ready-scene">
+            <Giraffe />
+            <h1>Сайн сонголт!</h1>
+            <p>Бяцхан бэлгүүд чамайг хүлээж байна.</p>
+            <Button icon={<Sparkles size={18} />} onClick={() => setScreen("cover")}>Нээх</Button>
           </div>
         )}
-        {story === 2 && (
-          <div className="story-message">
-            <MessageCircle size={32} style={{ color: template.accent }} />
-            <blockquote>{draft.greetingText}</blockquote>
-            {draft.senderVisibility !== "ANONYMOUS" && <span>— {draft.senderName}</span>}
+
+        {screen === "cover" && (
+          <div className="birthday-cover">
+            <div className="cutout-title">
+              <span>H</span><span>a</span><span>p</span><span>p</span><span>y</span>
+            </div>
+            <div className="camera-frame">
+              <div className="camera-top"><span /><Camera size={19} /></div>
+              <img src={draft.primaryPhoto || photos[0]} alt={draft.recipientName || "Төрсөн өдрийн зураг"} />
+              <div className="camera-bottom"><span>memory 01</span><i /></div>
+            </div>
+            <h1>{draft.headline || `Төрсөн өдрийн мэнд, ${draft.recipientName || "миний дотны хүн"}!`}</h1>
+            <Giraffe />
+            <Button icon={<ArrowRight size={18} />} onClick={() => setScreen("gifts")}>Дараах</Button>
           </div>
         )}
-        {story === 3 && draft.secretMessage && (
-          <button className={`secret-letter ${secretOpen ? "open" : ""}`} onClick={() => setSecretOpen(true)}>
-            <span><FileText size={29} /></span>
-            <h2>{secretOpen ? "Чамд л зориулсан захиа" : "Нууц захиа байна"}</h2>
-            <p>{secretOpen ? draft.secretMessage : "Tap хийж нээгээрэй"}</p>
-          </button>
+
+        {screen === "gifts" && (
+          <div className="gift-hub">
+            <small>Нэг нэгээр нь нээгээрэй</small>
+            <h1>Чамд зориулсан 3 бэлэг</h1>
+            <div className="recipient-gifts">
+              <button type="button" onClick={() => openGift("memories")}>
+                <span><Camera /></span>
+                <strong>Дурсамж</strong>
+                {openedGifts.includes("memories") && <CheckCircle2 />}
+              </button>
+              <button type="button" onClick={() => openGift("letter")}>
+                <span><Mail /></span>
+                <strong>Захиа</strong>
+                {openedGifts.includes("letter") && <CheckCircle2 />}
+              </button>
+              <button type="button" onClick={() => openGift("music")}>
+                <span><CassetteTape /></span>
+                <strong>Аялгуу</strong>
+                {openedGifts.includes("music") && <CheckCircle2 />}
+              </button>
+            </div>
+            <Button
+              variant="secondary"
+              icon={<PartyPopper size={18} />}
+              disabled={openedGifts.length < 3}
+              onClick={() => setScreen("finale")}
+            >
+              Төгсгөлийг нээх
+            </Button>
+          </div>
         )}
-        {story === (draft.secretMessage ? 4 : 3) && (
-          <div className="reaction-story">
-            <Heart size={34} style={{ color: template.accent }} />
-            <h2>Ямар санагдав?</h2>
-            <p>Илгээгчид сэтгэл хөдлөлөө хүргээрэй.</p>
-            <div className="reaction-row">
-              {reactions.map((emoji) => (
+
+        {screen === "memories" && (
+          <div className="memories-scene">
+            <div className="search-title"><Camera size={28} /><h1>Бидний дурсамж</h1></div>
+            <div className="memory-search"><span>Бидний мөчүүд</span><Heart size={18} fill="currentColor" /></div>
+            <div className="memory-gallery">
+              {photos.slice(0, 6).map((photo, index) => (
+                <img src={photo} alt={`Дурсамж ${index + 1}`} key={`${photo}-${index}`} />
+              ))}
+            </div>
+            <Button icon={<ArrowLeft size={18} />} onClick={() => setScreen("gifts")}>Бэлгүүд рүү</Button>
+          </div>
+        )}
+
+        {screen === "letter" && (
+          <div className="letter-scene">
+            <span className="letter-seal"><Mail size={25} /></span>
+            <small>{draft.senderName || "Таны дотны хүн"}-ээс</small>
+            <h1>{draft.recipientName || "Чамдаа"}</h1>
+            <div className="letter-paper">
+              <p>
+                {draft.greetingText ||
+                  "Чиний инээмсэглэл, дэргэд байдаг дулаахан зан амьдралыг илүү гоё болгодог. Энэ шинэ насанд аз жаргал, амжилт, хайр дүүрэн байгаарай."}
+              </p>
+              <strong>— {draft.senderVisibility === "ANONYMOUS" ? "Нууц илгээгч" : draft.senderName || "Чиний хүн"}</strong>
+            </div>
+            <Button icon={<ArrowLeft size={18} />} onClick={() => setScreen("gifts")}>Бэлгүүд рүү</Button>
+          </div>
+        )}
+
+        {screen === "music" && (
+          <div className="music-scene">
+            <CassetteTape size={62} />
+            <small>Чамд зориулсан аялгуу</small>
+            <h1>{draft.musicId === "warm-memory" ? "Warm memory" : "Sunny day"}</h1>
+            <div className="music-player">
+              <button type="button" onClick={() => setPlaying(!playing)}>
+                {playing ? <Pause size={25} /> : <Play size={25} fill="currentColor" />}
+              </button>
+              <div><span style={{ width: playing ? "64%" : "18%" }} /></div>
+              <small>{playing ? "01:24" : "00:00"}</small>
+            </div>
+            <p>{playing ? "Аялгуу тоглож байна" : "Play дарж эхлүүлээрэй"}</p>
+            <Button icon={<ArrowLeft size={18} />} onClick={() => setScreen("gifts")}>Бэлгүүд рүү</Button>
+          </div>
+        )}
+
+        {screen === "finale" && (
+          <div className="finale-scene">
+            <Giraffe />
+            <small>Төрсөн өдрийн мэнд</small>
+            <h1>
+              {draft.secretMessage ||
+                "Хүлээж байсан бүх сайхан зүйл чинь энэ жил чамайг олоосой."}
+            </h1>
+            <div className="reaction-picker">
+              {["❤️", "🥹", "🎉", "✨"].map((emoji) => (
                 <button
                   type="button"
-                  className={draft.reaction === emoji ? "selected" : ""}
-                  key={emoji}
+                  className={reaction === emoji ? "selected" : ""}
                   onClick={() => {
-                    localTransition({ reaction: emoji, engagementStatus: "REACTED" });
-                    transition("react", { emoji });
+                    setReaction(emoji);
+                    recipientTransition("react", { emoji });
                   }}
+                  key={emoji}
                 >
                   {emoji}
                 </button>
               ))}
             </div>
-            {draft.reaction && <small>Таны reaction илгээгдлээ</small>}
-          </div>
-        )}
-        {story === storyTotal - 1 && (
-          <div className="reply-story">
-            <Send size={31} style={{ color: template.accent }} />
-            <h2>Хариу илгээх</h2>
-            {draft.allowReply ? (
-              <>
-                <div className="ready-replies">
-                  {readyReplies.map((reply) => (
-                    <button key={reply} onClick={() => setReplyText(reply)}>{reply}</button>
-                  ))}
-                </div>
-                <div className="reply-compose">
-                  <textarea
-                    maxLength={500}
-                    value={replyText}
-                    onChange={(event) => setReplyText(sanitizePlainText(event.target.value, 500))}
-                    placeholder="Богино хариу бичих..."
-                  />
-                  <Button
-                    icon={<Send size={17} />}
-                    disabled={!replyText.trim()}
-                    onClick={() => {
-                      localTransition({ reply: replyText, engagementStatus: "REPLIED" });
-                      transition("reply", { message: replyText });
-                      setReplyText("");
-                    }}
-                  >
-                    Илгээх
-                  </Button>
-                </div>
-                {draft.reply && <p className="reply-success">Хариу амжилттай илгээгдлээ.</p>}
-              </>
-            ) : (
-              <p>Илгээгч хариу авах тохиргоог хаасан байна.</p>
+            {draft.allowReply && (
+              <div className="reply-box">
+                <input value={reply} onChange={(event) => setReply(event.target.value)} placeholder="Богино хариу..." maxLength={160} />
+                <IconButton
+                  label="Хариу илгээх"
+                  disabled={!reply.trim()}
+                  onClick={() => {
+                    recipientTransition("reply", { message: reply });
+                    setReply("");
+                  }}
+                >
+                  <Send size={18} />
+                </IconButton>
+              </div>
             )}
           </div>
         )}
-      </div>
-
-      <div className="story-bottom">
-        <button onClick={() => setStory(Math.max(0, story - 1))} disabled={story === 0}>
-          <ArrowLeft size={20} />
-        </button>
-        <span>{story + 1} / {storyTotal}</span>
-        <button onClick={() => setStory(Math.min(storyTotal - 1, story + 1))} disabled={story === storyTotal - 1}>
-          <ArrowRight size={20} />
-        </button>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
 
-function makeAdminRows(current: GreetingDraft) {
-  const base = createDefaultDraft();
-  return [
-    current,
-    {
-      ...base,
-      id: "g_10429",
-      recipientName: "Номин",
-      senderName: "Саруул",
-      templateId: "soft-letter",
-      greetingStatus: "PUBLISHED" as const,
-      paymentStatus: "SUCCESS" as const,
-      engagementStatus: "REPLIED" as const,
-      moderationStatus: "NORMAL" as const,
-      reaction: "🥹",
-      reply: "Үнэхээр сэтгэл хөдөллөө, баярлалаа!",
-      primaryPhoto: templates[1].image,
-      updatedAt: "2026-07-28T08:12:00.000Z",
-    },
-    {
-      ...base,
-      id: "g_10418",
-      recipientName: "Тэмүүлэн",
-      senderName: "Мөнхөө",
-      templateId: "night-spark",
-      greetingStatus: "PUBLISHED" as const,
-      paymentStatus: "SUCCESS" as const,
-      engagementStatus: "OPENED" as const,
-      moderationStatus: "REPORTED" as const,
-      primaryPhoto: templates[2].image,
-      updatedAt: "2026-07-27T12:42:00.000Z",
-    },
-    {
-      ...base,
-      id: "g_10392",
-      recipientName: "Ану",
-      senderName: "Билгүүн",
-      templateId: "retro-pop",
-      greetingStatus: "READY_TO_PAY" as const,
-      paymentStatus: "PENDING" as const,
-      engagementStatus: "NOT_OPENED" as const,
-      moderationStatus: "NORMAL" as const,
-      primaryPhoto: templates[3].image,
-      updatedAt: "2026-07-26T06:30:00.000Z",
-    },
-  ];
-}
-
-function AdminApp({
-  draft,
-  setDraft,
-}: {
-  draft: GreetingDraft;
-  setDraft: React.Dispatch<React.SetStateAction<GreetingDraft>>;
-}) {
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("Бүгд");
-  const [selectedId, setSelectedId] = useState(draft.id);
-  const [privateVisible, setPrivateVisible] = useState(false);
-  const rows = useMemo(() => makeAdminRows(draft), [draft]);
-  const filtered = rows.filter((row) => {
-    const display = getDisplayStatus(row).label;
-    return (
-      (filter === "Бүгд" || display === filter) &&
-      `${row.id} ${row.recipientName} ${row.senderName}`.toLowerCase().includes(query.toLowerCase())
-    );
-  });
-  const selected = rows.find((row) => row.id === selectedId) ?? rows[0];
-
-  async function moderate(status: "BLOCKED" | "RESTORED" | "UNDER_REVIEW") {
-    if (selected.id === draft.id) {
-      setDraft((current) => ({
-        ...current,
-        moderationStatus: status,
-        greetingStatus:
-          status === "BLOCKED"
-            ? "BLOCKED"
-            : status === "RESTORED" && current.greetingStatus === "BLOCKED"
-              ? "PUBLISHED"
-              : current.greetingStatus,
-      }));
-    }
-    try {
-      await fetch("/api/greetings", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          id: selected.id,
-          action: "moderate",
-          moderationStatus: status,
-          reason: "Demo admin review",
-        }),
-      });
-    } catch {
-      // The local admin state still demonstrates the role flow.
-    }
-  }
+function AdminApp({ draft }: { draft: GreetingDraft }) {
+  const rows = useMemo(
+    () => [
+      draft,
+      {
+        ...createDefaultDraft(),
+        id: "g_10429",
+        recipientName: "Номин",
+        senderName: "Саруул",
+        greetingStatus: "PUBLISHED" as const,
+        paymentStatus: "SUCCESS" as const,
+        engagementStatus: "REPLIED" as const,
+        accessCodeApplied: true,
+        primaryPhoto: fallbackMemories[1],
+        memoryPhotos: fallbackMemories.slice(0, 4),
+      },
+      {
+        ...createDefaultDraft(),
+        id: "g_10418",
+        recipientName: "Тэмүүлэн",
+        senderName: "Мөнхөө",
+        greetingStatus: "PUBLISHED" as const,
+        paymentStatus: "SUCCESS" as const,
+        engagementStatus: "OPENED" as const,
+        accessCodeApplied: true,
+        primaryPhoto: fallbackMemories[2],
+        memoryPhotos: fallbackMemories.slice(2, 6),
+      },
+    ],
+    [draft],
+  );
 
   return (
-    <div className="admin-shell">
-      <aside className="admin-sidebar">
-        <div className="admin-profile">
-          <span>BA</span>
-          <div><strong>Б. Ариунаа</strong><small>Super Admin</small></div>
-          <ChevronDown size={17} />
-        </div>
-        <nav>
-          <button className="active"><LayoutDashboard size={18} />Хяналтын самбар</button>
-          <button><Gift size={18} />Мэндчилгээ <span>24</span></button>
-          <button><CircleDollarSign size={18} />Төлбөр</button>
-          <button><FileText size={18} />Загвар</button>
-          <button><Users size={18} />Хэрэглэгч</button>
-          <button><ShieldCheck size={18} />Report <span className="alert">3</span></button>
-        </nav>
-        <div className="admin-sidebar-bottom">
-          <button><Settings2 size={18} />Тохиргоо</button>
-          <small>mend. admin · v0.1</small>
-        </div>
+    <main className="admin-page">
+      <PaperDecor />
+      <header className="admin-title">
+        <div><small>mend control room</small><h1>Scrapbook мэндчилгээнүүд</h1></div>
+        <StatusPill draft={draft} />
+      </header>
+      <section className="admin-stats">
+        <div><Gift /><span><strong>48</strong><small>Үүсгэсэн</small></span></div>
+        <div><Eye /><span><strong>139</strong><small>Нээсэн</small></span></div>
+        <div><MessageCircle /><span><strong>18</strong><small>Хариу</small></span></div>
+      </section>
+      <section className="admin-list">
+        <header><h2>Сүүлийн мэндчилгээ</h2><span>{rows.length} нийт</span></header>
+        {rows.map((row) => (
+          <article key={row.id}>
+            <img src={row.primaryPhoto || fallbackMemories[0]} alt="" />
+            <div><strong>{row.recipientName || "Нэргүй draft"}</strong><small>{row.senderName || "Guest"} · {row.id}</small></div>
+            <span>{row.memoryPhotos?.length || 0} зураг</span>
+            <StatusPill draft={row} />
+            <IconButton label="Дэлгэрэнгүй"><ArrowRight size={18} /></IconButton>
+          </article>
+        ))}
+      </section>
+      <aside className="admin-note">
+        <ShieldCheck size={21} />
+        <div><strong>Хувийн агуулга хамгаалагдсан</strong><span>Зөвхөн report шалгах үед media нээгдэнэ.</span></div>
       </aside>
-      <main className="admin-main">
-        <div className="admin-heading">
-          <div><p>2026 оны 7-р сарын 28</p><h1>Өдрийн мэнд, Ариунаа</h1></div>
-          <div>
-            <IconButton label="Мэдэгдэл"><Bell size={19} /><i /></IconButton>
-            <Button icon={<Download size={17} />} variant="secondary">Тайлан татах</Button>
-          </div>
-        </div>
-
-        <section className="kpi-grid">
-          {[
-            ["Өнөөдөр үүссэн", "48", "+12%", <Gift key="gift" />],
-            ["Амжилттай төлбөр", "31", "306,900₮", <CircleDollarSign key="pay" />],
-            ["Нийтэлсэн", "27", "87% conversion", <Send key="send" />],
-            ["Reply авсан", "18", "66.7%", <MessageCircle key="reply" />],
-          ].map(([label, value, note, icon]) => (
-            <article className="kpi-item" key={String(label)}>
-              <div><span>{icon}</span><small>{label}</small></div>
-              <strong>{value}</strong>
-              <p>{note}</p>
-            </article>
-          ))}
-        </section>
-
-        <section className="analytics-band">
-          <div className="chart-header">
-            <div><small>Сүүлийн 7 хоног</small><h2>Мэндчилгээний урсгал</h2></div>
-            <div className="chart-legend"><span><i />Үүссэн</span><span><i />Нийтэлсэн</span></div>
-          </div>
-          <div className="bar-chart" aria-label="7 хоногийн мэндчилгээний график">
-            {[48, 62, 51, 73, 66, 91, 78].map((height, index) => (
-              <div key={index}>
-                <span style={{ height: `${height}%` }}><i style={{ height: `${Math.max(30, height - 20)}%` }} /></span>
-                <small>{["Да", "Мя", "Лх", "Пү", "Ба", "Бя", "Ня"][index]}</small>
-              </div>
-            ))}
-          </div>
-          <div className="funnel-summary">
-            <div><span>Эхлүүлсэн</span><strong>286</strong></div>
-            <ChevronRight size={17} />
-            <div><span>Төлсөн</span><strong>194</strong></div>
-            <ChevronRight size={17} />
-            <div><span>Нийтэлсэн</span><strong>168</strong></div>
-            <ChevronRight size={17} />
-            <div><span>Нээгдсэн</span><strong>139</strong></div>
-          </div>
-        </section>
-
-        <section className="admin-list-section">
-          <div className="list-heading">
-            <div><h2>Сүүлийн мэндчилгээнүүд</h2><span>{filtered.length} үр дүн</span></div>
-            <div className="search-box"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ID, нэрээр хайх" /></div>
-          </div>
-          <div className="filter-tabs">
-            {["Бүгд", "Ноорог", "Төлбөр хүлээгдэж байна", "Идэвхтэй", "Нээгдсэн", "Хариу ирсэн", "Шалгаж байна"].map((item) => (
-              <button className={filter === item ? "active" : ""} key={item} onClick={() => setFilter(item)}>{item}</button>
-            ))}
-          </div>
-          <div className="greeting-table-wrap">
-            <table className="greeting-table">
-              <thead><tr><th>Мэндчилгээ</th><th>Бүтээгч</th><th>Төлбөр</th><th>Үндсэн төлөв</th><th>Engagement</th><th>Moderation</th><th /></tr></thead>
-              <tbody>
-                {filtered.map((row) => {
-                  const rowTemplate = templates.find((item) => item.id === row.templateId) ?? templates[0];
-                  return (
-                    <tr key={row.id} className={selected.id === row.id ? "selected" : ""} onClick={() => setSelectedId(row.id)}>
-                      <td><img src={row.primaryPhoto || rowTemplate.image} alt="" /><span><strong>{row.recipientName || "Нэргүй draft"}</strong><small>{row.id}</small></span></td>
-                      <td><strong>{row.senderName || "Guest"}</strong><small>{new Date(row.updatedAt).toLocaleDateString("mn-MN")}</small></td>
-                      <td><span className={`raw-status raw-${row.paymentStatus.toLowerCase()}`}>{row.paymentStatus}</span></td>
-                      <td>{row.greetingStatus}</td>
-                      <td>{row.engagementStatus}</td>
-                      <td><span className={`moderation-dot moderation-${row.moderationStatus.toLowerCase()}`} />{row.moderationStatus}</td>
-                      <td><IconButton label="Дэлгэрэнгүй"><ChevronRight size={18} /></IconButton></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </main>
-
-      <aside className="detail-panel">
-        <div className="detail-panel-head">
-          <div><small>Greeting detail</small><h2>{selected.id}</h2></div>
-          <StatusBadge draft={selected} />
-        </div>
-        <div className={`private-preview ${privateVisible ? "revealed" : ""}`}>
-          <img src={selected.primaryPhoto || templates[0].image} alt="" />
-          {!privateVisible && <div><LockKeyhole size={21} /><span>Хувийн агуулга</span></div>}
-        </div>
-        <button className="private-access" onClick={() => setPrivateVisible(!privateVisible)}>
-          <Eye size={17} />{privateVisible ? "Агуулгыг нуух" : "Шалтгаан бүртгэж харах"}
-        </button>
-        <div className="detail-tabs"><button className="active">Overview</button><button>Payment</button><button>Audit</button></div>
-        <dl className="detail-list">
-          <div><dt>Хүлээн авагч</dt><dd>{selected.recipientName || "Оруулаагүй"}</dd></div>
-          <div><dt>Бүтээгч</dt><dd>{selected.senderName || "Guest"}</dd></div>
-          <div><dt>Template</dt><dd>{templates.find((item) => item.id === selected.templateId)?.name || "Сонгоогүй"}</dd></div>
-          <div><dt>Payment</dt><dd>{selected.paymentStatus}</dd></div>
-          <div><dt>Engagement</dt><dd>{selected.engagementStatus}</dd></div>
-          <div><dt>Reaction</dt><dd>{selected.reaction || "—"}</dd></div>
-          <div><dt>Reply</dt><dd>{selected.reply || "—"}</dd></div>
-        </dl>
-        {selected.moderationStatus === "REPORTED" ? (
-          <div className="report-box"><ShieldCheck size={19} /><div><strong>Report шалгах шаардлагатай</strong><span>Зөвшөөрөлгүй зураг ашигласан</span></div></div>
-        ) : null}
-        <div className="detail-actions">
-          {selected.moderationStatus === "BLOCKED" ? (
-            <Button variant="secondary" icon={<RefreshCw size={17} />} onClick={() => moderate("RESTORED")}>Restore</Button>
-          ) : (
-            <Button variant="danger" icon={<LockKeyhole size={17} />} onClick={() => moderate("BLOCKED")}>Түр block хийх</Button>
-          )}
-          <Button variant="ghost" icon={<Archive size={17} />}>Архивлах</Button>
-        </div>
-        <div className="audit-note">
-          <ShieldCheck size={17} />
-          <span>Admin үйлдэл бүр audit log-д хадгалагдана.</span>
-        </div>
-      </aside>
-    </div>
+    </main>
   );
+}
+
+function AppHeader({
+  role,
+  draft,
+  mobileOpen,
+  setMobileOpen,
+  onRoleChange,
+}: {
+  role: Role;
+  draft: GreetingDraft;
+  mobileOpen: boolean;
+  setMobileOpen: (value: boolean) => void;
+  onRoleChange: (role: Role) => void;
+}) {
+  return (
+    <header className="app-header">
+      <button className="brand" onClick={() => onRoleChange("creator")}>
+        <span>mend.</span>
+        <small>birthday scrapbook</small>
+      </button>
+      <nav className={mobileOpen ? "open" : ""} aria-label="Дүрээр харах">
+        <button className={role === "creator" ? "active" : ""} onClick={() => onRoleChange("creator")}><WandSparkles size={16} />Бүтээгч</button>
+        <button className={role === "recipient" ? "active" : ""} onClick={() => onRoleChange("recipient")}><Gift size={16} />Хүлээн авагч</button>
+        <button className={role === "admin" ? "active" : ""} onClick={() => onRoleChange("admin")}><ShieldCheck size={16} />Админ</button>
+      </nav>
+      <div className="header-end">
+        <StatusPill draft={draft} />
+        <IconButton label="Цэс" onClick={() => setMobileOpen(!mobileOpen)}>
+          {mobileOpen ? <X size={19} /> : <Menu size={19} />}
+        </IconButton>
+      </div>
+    </header>
+  );
+}
+
+function normalizeDraft(value: Partial<GreetingDraft>): GreetingDraft {
+  const fallback = createDefaultDraft();
+  return {
+    ...fallback,
+    ...value,
+    currentStep: Math.min(Number(value.currentStep ?? 0), 3),
+    templateId: value.templateId?.includes("scrapbook")
+      ? value.templateId
+      : "sunny-scrapbook",
+    memoryPhotos:
+      value.memoryPhotos?.length
+        ? value.memoryPhotos
+        : value.primaryPhoto
+          ? [value.primaryPhoto]
+          : [],
+  };
 }
 
 export default function BirthdayApp() {
@@ -1776,22 +1209,36 @@ export default function BirthdayApp() {
   const [draft, setDraft] = useState<GreetingDraft>(() => createDefaultDraft());
   const [hydrated, setHydrated] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [mobileNav, setMobileNav] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [sharedRecipient, setSharedRecipient] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const params = new URLSearchParams(window.location.search);
       const requestedRole = params.get("role");
+      const slug = params.get("slug");
       if (requestedRole === "recipient" || requestedRole === "admin") {
         setRole(requestedRole);
       }
+      setSharedRecipient(Boolean(slug && requestedRole === "recipient"));
+
       const saved = window.localStorage.getItem("mend-greeting-draft");
       if (saved) {
         try {
-          setDraft(JSON.parse(saved) as GreetingDraft);
+          setDraft(normalizeDraft(JSON.parse(saved) as Partial<GreetingDraft>));
         } catch {
           window.localStorage.removeItem("mend-greeting-draft");
         }
+      }
+
+      if (slug) {
+        fetch(`/api/greetings?slug=${encodeURIComponent(slug)}`)
+          .then(async (response) => {
+            if (!response.ok) return;
+            const result = (await response.json()) as { greeting: GreetingDraft };
+            setDraft(normalizeDraft(result.greeting));
+          })
+          .catch(() => undefined);
       }
       setHydrated(true);
     }, 0);
@@ -1801,8 +1248,8 @@ export default function BirthdayApp() {
   useEffect(() => {
     if (!hydrated) return;
     window.localStorage.setItem("mend-greeting-draft", JSON.stringify(draft));
-    const savingTimer = window.setTimeout(() => setSaveState("saving"), 0);
-    const timer = window.setTimeout(async () => {
+    const saving = window.setTimeout(() => setSaveState("saving"), 0);
+    const sync = window.setTimeout(async () => {
       try {
         const response = await fetch("/api/greetings", {
           method: "POST",
@@ -1815,40 +1262,31 @@ export default function BirthdayApp() {
       }
     }, 650);
     return () => {
-      window.clearTimeout(savingTimer);
-      window.clearTimeout(timer);
+      window.clearTimeout(saving);
+      window.clearTimeout(sync);
     };
   }, [draft, hydrated]);
 
   function changeRole(nextRole: Role) {
     setRole(nextRole);
-    setMobileNav(false);
+    setMobileOpen(false);
     const url = new URL(window.location.href);
     url.searchParams.set("role", nextRole);
+    if (nextRole !== "recipient") url.searchParams.delete("slug");
     window.history.replaceState({}, "", url);
   }
 
   return (
     <div className={`app-root role-${role}`}>
-      <header className="app-header">
-        <button className="brand" onClick={() => changeRole("creator")} aria-label="Mend нүүр">
-          <span>mend.</span>
-          <small>Төрсөн өдрийн студи</small>
-        </button>
-        <nav className={mobileNav ? "open" : ""} aria-label="Дүрээр харах">
-          <button className={role === "creator" ? "active" : ""} onClick={() => changeRole("creator")}><WandSparkles size={17} />Бүтээгч</button>
-          <button className={role === "recipient" ? "active" : ""} onClick={() => changeRole("recipient")}><Gift size={17} />Хүлээн авагч</button>
-          <button className={role === "admin" ? "active" : ""} onClick={() => changeRole("admin")}><BarChart3 size={17} />Админ</button>
-        </nav>
-        <div className="header-actions">
-          {role === "creator" && <StatusBadge draft={draft} />}
-          <IconButton label="Цэс" onClick={() => setMobileNav(!mobileNav)}>
-            {mobileNav ? <X size={20} /> : <Menu size={20} />}
-          </IconButton>
-          <span className="user-avatar">{role === "admin" ? "BA" : "ИЗ"}</span>
-        </div>
-      </header>
-
+      {role !== "recipient" && (
+        <AppHeader
+          role={role}
+          draft={draft}
+          mobileOpen={mobileOpen}
+          setMobileOpen={setMobileOpen}
+          onRoleChange={changeRole}
+        />
+      )}
       {role === "creator" && (
         <CreatorApp
           draft={draft}
@@ -1858,9 +1296,14 @@ export default function BirthdayApp() {
         />
       )}
       {role === "recipient" && (
-        <RecipientApp draft={draft} setDraft={setDraft} onRoleChange={changeRole} />
+        <RecipientApp
+          draft={draft}
+          setDraft={setDraft}
+          preview={!sharedRecipient}
+          onRoleChange={changeRole}
+        />
       )}
-      {role === "admin" && <AdminApp draft={draft} setDraft={setDraft} />}
+      {role === "admin" && <AdminApp draft={draft} />}
     </div>
   );
 }

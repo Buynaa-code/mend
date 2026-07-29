@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 const title = "mend. — Төрсөн өдрийн мэндчилгээ";
 const description =
-  "Зураг, захиа, хөгжимтэй хувийн төрсөн өдрийн story мэндчилгээ бүтээж, онцгой мөчөө хуваалцаарай.";
+  "Дурсамж, захиа, аялгуутай интерактив төрсөн өдрийн scrapbook бүтээж, онцгой мөчөө хуваалцаарай.";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
