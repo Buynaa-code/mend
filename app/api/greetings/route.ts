@@ -8,7 +8,11 @@ import type {
   ModerationStatus,
   PaymentStatus,
 } from "../../lib/greeting";
-import { isDraftReady, sanitizePlainText } from "../../lib/greeting";
+import {
+  demoAccessCode,
+  isDraftReady,
+  sanitizePlainText,
+} from "../../lib/greeting";
 
 function readDraft(value: GreetingRow["draft_json"]) {
   return value as unknown as GreetingDraft;
@@ -207,15 +211,21 @@ export async function PATCH(request: Request) {
         const submittedCode = sanitizePlainText(payload.accessCode ?? "", 20)
           .trim()
           .toUpperCase();
+        const isDemoCode = submittedCode === demoAccessCode;
         if (
-          paymentStatus !== "SUCCESS" ||
-          !draft.accessCode ||
-          submittedCode !== draft.accessCode
+          !isDemoCode &&
+          (paymentStatus !== "SUCCESS" ||
+            !draft.accessCode ||
+            submittedCode !== draft.accessCode)
         ) {
           return Response.json(
             { error: "Эрхийн код буруу эсвэл ашиглах боломжгүй байна." },
             { status: 409 },
           );
+        }
+        if (isDemoCode) {
+          paymentStatus = "SUCCESS";
+          draft.accessCode = demoAccessCode;
         }
         draft.accessCodeApplied = true;
         greetingStatus = isDraftReady(draft) ? "READY_TO_PUBLISH" : "DRAFT";

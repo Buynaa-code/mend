@@ -60,6 +60,7 @@ import {
 } from "react";
 import {
   createDefaultDraft,
+  demoAccessCode,
   getDisplayStatus,
   type GreetingDraft,
   isDraftReady,
@@ -396,13 +397,21 @@ function CreatorApp({
 
   async function redeemCode() {
     const normalized = codeInput.trim().toUpperCase();
+    const isDemoCode = normalized === demoAccessCode;
     if (
-      draft.paymentStatus !== "SUCCESS" ||
-      !draft.accessCode ||
-      normalized !== draft.accessCode
+      !isDemoCode &&
+      (draft.paymentStatus !== "SUCCESS" ||
+        !draft.accessCode ||
+        normalized !== draft.accessCode)
     ) {
       setCodeFeedback("Код буруу эсвэл ашиглах боломжгүй байна.");
       return;
+    }
+    if (isDemoCode) {
+      update({
+        paymentStatus: "SUCCESS",
+        accessCode: demoAccessCode,
+      });
     }
     setCodeFeedback("Эрх амжилттай идэвхжлээ.");
     await transition("redeem-code");

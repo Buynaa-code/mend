@@ -31,6 +31,8 @@ export type ModerationStatus =
 
 export type SenderVisibility = "START" | "END" | "ANONYMOUS";
 
+export const demoAccessCode = "MEND-TEST01";
+
 export interface GreetingDraft {
   id: string;
   guestId: string;
