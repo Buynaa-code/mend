@@ -30,7 +30,7 @@ body {
   margin: 0;
   background: var(--canvas);
   color: var(--ink);
-  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-nunito), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.45;
   text-rendering: optimizeLegibility;
@@ -4024,7 +4024,7 @@ img {
 
 .sidebar-title-row > span {
   color: #5b293d;
-  font-family: ui-rounded, "Arial Rounded MT Bold", var(--font-geist-sans), sans-serif;
+  font-family: var(--font-nunito), ui-rounded, "Arial Rounded MT Bold", sans-serif;
   font-size: 15px;
 }
 
@@ -4134,7 +4134,7 @@ img {
 .section-heading h1 {
   max-width: 780px;
   color: #4b2334;
-  font-family: ui-rounded, "Arial Rounded MT Bold", var(--font-geist-sans), sans-serif;
+  font-family: var(--font-nunito), ui-rounded, "Arial Rounded MT Bold", sans-serif;
   font-size: 34px;
   font-weight: 760;
 }
@@ -4173,7 +4173,7 @@ img {
 .birthday-promo h2 {
   margin: 4px 0 5px;
   color: #4f2335;
-  font-family: ui-rounded, "Arial Rounded MT Bold", var(--font-geist-sans), sans-serif;
+  font-family: var(--font-nunito), ui-rounded, "Arial Rounded MT Bold", sans-serif;
   font-size: 19px;
 }
 
@@ -4578,7 +4578,7 @@ img {
 
 .payment-modal h2 {
   color: #4b2635;
-  font-family: ui-rounded, "Arial Rounded MT Bold", var(--font-geist-sans), sans-serif;
+  font-family: var(--font-nunito), ui-rounded, "Arial Rounded MT Bold", sans-serif;
   font-size: 22px;
 }
 
