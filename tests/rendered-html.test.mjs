@@ -68,6 +68,27 @@ test("renders dashboard and public greeting routes", async () => {
   assert.doesNotMatch(greetingHtml, /ownerToken|owner_token|authorization/i);
 });
 
+test("renders the protected payment route", async () => {
+  const response = await render("/pay");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /SECURE CHECKOUT/);
+  assert.match(html, /1 төлбөр = 1 нийтлэгдсэн/);
+  assert.match(html, /Линкээ идэвхжүүлэх/);
+  assert.doesNotMatch(html, /QPAY_CLIENT_SECRET|APP_SECRET|owner_token_hash/i);
+});
+
+test("creator requires checkout instead of direct publishing", async () => {
+  const source = await readFile(
+    new URL("../app/BirthdayApp.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /6,900₮/);
+  assert.match(source, /Загварлах, файл нэмэх, preview харах нь үнэгүй/);
+  assert.match(source, /fetch\("\/api\/checkout"/);
+  assert.doesNotMatch(source, />Тусгай линк үүсгэх</);
+});
+
 test("root redirects to creator route", async () => {
   const response = await render("/");
   assert.ok([301, 302, 307, 308].includes(response.status));

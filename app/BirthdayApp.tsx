@@ -118,7 +118,7 @@ function IconButton({
   );
 }
 
-function AppShell({
+export function AppShell({
   current,
   children,
 }: {
@@ -215,11 +215,8 @@ export function CreateGreetingApp() {
   const [hydrated, setHydrated] = useState(false);
   const [uploading, setUploading] = useState<"images" | "music" | "">("");
   const [error, setError] = useState("");
-  const [publishing, setPublishing] = useState(false);
-  const [published, setPublished] = useState<{
-    shareUrl: string;
-    slug: string;
-  } | null>(null);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [ownerEmail, setOwnerEmail] = useState("");
   const photoRef = useRef<HTMLInputElement>(null);
   const musicRef = useRef<HTMLInputElement>(null);
   const step = Math.max(0, Math.min(3, draft.currentStep));
@@ -234,16 +231,17 @@ export function CreateGreetingApp() {
           window.localStorage.removeItem(draftKey);
         }
       }
+      setOwnerEmail(window.localStorage.getItem("mend-owner-email-v1") || "");
       setHydrated(true);
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (hydrated && !published) {
+    if (hydrated) {
       window.localStorage.setItem(draftKey, JSON.stringify(draft));
     }
-  }, [draft, hydrated, published]);
+  }, [draft, hydrated]);
 
   function update(patch: Partial<GreetingDraft>) {
     setError("");
@@ -290,52 +288,54 @@ export function CreateGreetingApp() {
     }
   }
 
-  async function publish() {
+  async function startCheckout() {
     if (!isDraftReady(draft)) {
       setError("Нэр, огноо, мэндчилгээ, дор хаяж нэг зургаа бүрэн оруулна уу.");
       return;
     }
-    setPublishing(true);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(ownerEmail.trim())) {
+      setError("Захиалга сэргээх боломжтой зөв email оруулна уу.");
+      return;
+    }
+    setCheckingOut(true);
     setError("");
     try {
-      const response = await fetch("/api/greetings", {
+      const response = await fetch("/api/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ draft }),
+        body: JSON.stringify({ draft, email: ownerEmail.trim() }),
       });
       const result = (await response.json()) as {
-        id?: string;
-        ownerToken?: string;
-        publicSlug?: string;
+        paymentId?: string;
+        orderId?: string;
+        clientSecret?: string;
         error?: string;
       };
-      if (!response.ok || !result.id || !result.ownerToken || !result.publicSlug) {
-        throw new Error(result.error || "Линк үүсгэж чадсангүй.");
+      if (
+        !response.ok ||
+        !result.paymentId ||
+        !result.orderId ||
+        !result.clientSecret
+      ) {
+        throw new Error(result.error || "Төлбөрийн нэхэмжлэх үүсгэж чадсангүй.");
       }
 
-      const owners = readOwnerEntries();
-      owners.unshift({
-        id: result.id,
-        token: result.ownerToken,
-        slug: result.publicSlug,
-        recipientName: draft.recipientName,
-      });
-      window.localStorage.setItem(ownerKey, JSON.stringify(owners.slice(0, 30)));
-      const shareUrl = `${window.location.origin}/g/${result.publicSlug}`;
-      setPublished({ shareUrl, slug: result.publicSlug });
-      window.localStorage.removeItem(draftKey);
+      window.localStorage.setItem("mend-owner-email-v1", ownerEmail.trim());
+      window.localStorage.setItem(
+        `mend-payment-v1:${result.paymentId}`,
+        JSON.stringify({
+          clientSecret: result.clientSecret,
+          orderId: result.orderId,
+        }),
+      );
+      window.location.assign(
+        `/pay?payment=${encodeURIComponent(result.paymentId)}`,
+      );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Алдаа гарлаа.");
     } finally {
-      setPublishing(false);
+      setCheckingOut(false);
     }
-  }
-
-  function resetDraft() {
-    setDraft(createDefaultDraft());
-    setPublished(null);
-    setError("");
-    window.localStorage.removeItem(draftKey);
   }
 
   const stepReady = [
@@ -383,7 +383,7 @@ export function CreateGreetingApp() {
                   "Загвараа сонго",
                   "Хэнд зориулж байна?",
                   "Дурсамжаа нэм",
-                  "Шалгаж, линкээ үүсгэ",
+                  "Шалгаж, линкээ идэвхжүүл",
                 ][step]
               }
             </h1>
@@ -602,94 +602,88 @@ export function CreateGreetingApp() {
           {step === 3 && (
             <div className="publish-stage">
               <CardPreview draft={draft} />
-              {published ? (
-                <section className="published-panel">
-                  <CheckCircle2 size={28} />
-                  <div>
-                    <strong>Тусгай линк бэлэн боллоо</strong>
-                    <small>Энэ линк дээр зөвхөн мэндчилгээний контент гарна.</small>
-                  </div>
-                  <div className="share-field">
-                    <span>{published.shareUrl}</span>
-                    <IconButton
-                      label="Линк хуулах"
-                      onClick={() =>
-                        navigator.clipboard?.writeText(published.shareUrl)
-                      }
-                    >
-                      <Copy size={18} />
-                    </IconButton>
-                  </div>
-                  <div className="publish-actions">
-                    <a className="primary-link" href={`/g/${published.slug}`}>
-                      <Eye size={18} /> Нээж үзэх
-                    </a>
-                    <a className="secondary-link" href="/dashboard">
-                      Dashboard
-                    </a>
-                    <button type="button" onClick={resetDraft}>
-                      Дахин үүсгэх
-                    </button>
-                  </div>
-                </section>
-              ) : (
-                <section className="publish-checklist">
-                  <strong>Бэлэн эсэх</strong>
-                  <span className={draft.template ? "ready" : ""}>
-                    <Check size={16} /> 4 загвараас сонгосон
-                  </span>
-                  <span
-                    className={
-                      draft.recipientName && draft.senderName && draft.birthdayDate
-                        ? "ready"
-                        : ""
-                    }
-                  >
-                    <Check size={16} /> Нэр, төрсөн өдөр оруулсан
-                  </span>
-                  <span className={draft.photos.length ? "ready" : ""}>
-                    <Check size={16} /> Зураг нэмсэн
-                  </span>
-                  <span className={draft.message ? "ready" : ""}>
-                    <Check size={16} /> Мэндчилгээ бичсэн
-                  </span>
-                  <button
-                    type="button"
-                    className="primary-button"
-                    disabled={!isDraftReady(draft) || publishing || Boolean(uploading)}
-                    onClick={publish}
-                  >
-                    <Sparkles size={18} />
-                    {publishing ? "Үүсгэж байна..." : "Тусгай линк үүсгэх"}
-                  </button>
-                </section>
-              )}
+              <section className="publish-checklist">
+                <strong>Бэлэн эсэх</strong>
+                <span className={draft.template ? "ready" : ""}>
+                  <Check size={16} /> 4 загвараас сонгосон
+                </span>
+                <span
+                  className={
+                    draft.recipientName && draft.senderName && draft.birthdayDate
+                      ? "ready"
+                      : ""
+                  }
+                >
+                  <Check size={16} /> Нэр, төрсөн өдөр оруулсан
+                </span>
+                <span className={draft.photos.length ? "ready" : ""}>
+                  <Check size={16} /> Зураг нэмсэн
+                </span>
+                <span className={draft.message ? "ready" : ""}>
+                  <Check size={16} /> Мэндчилгээ бичсэн
+                </span>
+                <label className="checkout-email">
+                  <span>Захиалга сэргээх email</span>
+                  <input
+                    type="email"
+                    value={ownerEmail}
+                    maxLength={160}
+                    autoComplete="email"
+                    onChange={(event) => {
+                      setError("");
+                      setOwnerEmail(event.target.value.slice(0, 160));
+                    }}
+                    placeholder="you@example.com"
+                  />
+                </label>
+                <div className="checkout-offer">
+                  <span>Нийтлэх эрх</span>
+                  <strong>6,900₮</strong>
+                  <small>1 төлбөр = 1 нийтлэгдсэн мэндчилгээний линк</small>
+                </div>
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={
+                    !isDraftReady(draft) ||
+                    checkingOut ||
+                    Boolean(uploading)
+                  }
+                  onClick={startCheckout}
+                >
+                  <Sparkles size={18} />
+                  {checkingOut
+                    ? "Нэхэмжлэх үүсгэж байна..."
+                    : "Линкээ идэвхжүүлэх · 6,900₮"}
+                </button>
+                <small className="free-preview-note">
+                  Загварлах, файл нэмэх, preview харах нь үнэгүй.
+                </small>
+              </section>
             </div>
           )}
 
           {error && <p className="form-error">{error}</p>}
-          {!published && (
-            <footer className="creator-footer">
+          <footer className="creator-footer">
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={step === 0}
+              onClick={() => setStep(step - 1)}
+            >
+              <ArrowLeft size={17} /> Буцах
+            </button>
+            {step < 3 && (
               <button
                 type="button"
-                className="secondary-button"
-                disabled={step === 0}
-                onClick={() => setStep(step - 1)}
+                className="primary-button"
+                disabled={!stepReady || Boolean(uploading)}
+                onClick={() => setStep(step + 1)}
               >
-                <ArrowLeft size={17} /> Буцах
+                Үргэлжлүүлэх <ArrowRight size={17} />
               </button>
-              {step < 3 && (
-                <button
-                  type="button"
-                  className="primary-button"
-                  disabled={!stepReady || Boolean(uploading)}
-                  onClick={() => setStep(step + 1)}
-                >
-                  Үргэлжлүүлэх <ArrowRight size={17} />
-                </button>
-              )}
-            </footer>
-          )}
+            )}
+          </footer>
         </section>
 
         <aside className="creator-preview">

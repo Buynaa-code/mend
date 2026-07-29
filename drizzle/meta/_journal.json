@@ -15,6 +15,20 @@
       "when": 1785318284031,
       "tag": "0001_elite_gorgon",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785320174142,
+      "tag": "0002_good_killmonger",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1785320192146,
+      "tag": "0003_tearful_christian_walker",
+      "breakpoints": true
     }
   ]
 }

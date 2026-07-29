@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `greetings_access_code_id_unique` ON `greetings` (`access_code_id`);

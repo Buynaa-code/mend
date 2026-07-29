@@ -1,7 +1,6 @@
 import { ensureSchema, getDb } from "../../../db";
 import {
   type DashboardGreeting,
-  type GreetingDraft,
   type PublicGreeting,
   type ReactionType,
   type TemplateId,
@@ -59,17 +58,6 @@ async function hashToken(token: string) {
     .join("");
 }
 
-function createToken() {
-  const bytes = crypto.getRandomValues(new Uint8Array(24));
-  return [...bytes]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function createSlug() {
-  return `mend-${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`;
-}
-
 function parsePhotos(value: string) {
   try {
     const photos = JSON.parse(value);
@@ -100,54 +88,6 @@ function toPublicGreeting(row: GreetingRow): PublicGreeting {
   };
 }
 
-function isMediaUrl(value: string) {
-  if (!value) return true;
-  try {
-    const url = new URL(value, "https://mend.local");
-    return (
-      url.origin === "https://mend.local" &&
-      url.pathname === "/api/media" &&
-      (url.searchParams.get("key") ?? "").startsWith("greetings/")
-    );
-  } catch {
-    return false;
-  }
-}
-
-function cleanDraft(value: GreetingDraft): GreetingDraft {
-  return {
-    currentStep: 3,
-    recipientName: sanitizePlainText(value.recipientName ?? "", 40).trim(),
-    senderName: sanitizePlainText(value.senderName ?? "", 40).trim(),
-    template: templateIds.has(value.template) ? value.template : "cute",
-    headline: sanitizePlainText(value.headline ?? "", 90).trim(),
-    message: sanitizePlainText(value.message ?? "", 1500).trim(),
-    surpriseMessage: sanitizePlainText(value.surpriseMessage ?? "", 500).trim(),
-    musicUrl: String(value.musicUrl ?? "").slice(0, 500),
-    musicName: sanitizePlainText(value.musicName ?? "", 100).trim(),
-    photos: Array.isArray(value.photos)
-      ? value.photos.filter((photo) => typeof photo === "string").slice(0, 6)
-      : [],
-    birthdayDate: String(value.birthdayDate ?? "").slice(0, 10),
-  };
-}
-
-function validateDraft(draft: GreetingDraft) {
-  if (!draft.recipientName || !draft.senderName || !draft.message) {
-    return "Нэр болон мэндчилгээ дутуу байна.";
-  }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.birthdayDate)) {
-    return "Төрсөн өдрийн огноо буруу байна.";
-  }
-  if (!draft.photos.length || draft.photos.some((photo) => !isMediaUrl(photo))) {
-    return "Зургаа бүрэн байршуулсны дараа линк үүсгэнэ үү.";
-  }
-  if (!isMediaUrl(draft.musicUrl)) {
-    return "Дууны файл буруу байна.";
-  }
-  return "";
-}
-
 export async function GET(request: Request) {
   try {
     await ensureSchema();
@@ -169,8 +109,15 @@ export async function GET(request: Request) {
       if (ownerToken.length < 32) return error("Dashboard эрх олдсонгүй.", 401);
       const ownerTokenHash = await hashToken(ownerToken);
       const row = await db
-        .prepare("SELECT * FROM greetings WHERE owner_token_hash = ? LIMIT 1")
-        .bind(ownerTokenHash)
+        .prepare(`
+          SELECT g.*
+          FROM greetings g
+          LEFT JOIN greeting_private gp ON gp.greeting_id = g.id
+          WHERE gp.owner_token_hash = ?
+             OR (gp.greeting_id IS NULL AND g.owner_token_hash = ?)
+          LIMIT 1
+        `)
+        .bind(ownerTokenHash, ownerTokenHash)
         .first<GreetingRow>();
       if (!row) return error("Мэндчилгээ олдсонгүй.", 404);
 
@@ -220,70 +167,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  try {
-    await ensureSchema();
-    const payload = (await request.json()) as { draft?: GreetingDraft };
-    if (!payload.draft) return error("Мэндчилгээний мэдээлэл дутуу байна.", 400);
-
-    const draft = cleanDraft(payload.draft);
-    const validationError = validateDraft(draft);
-    if (validationError) return error(validationError, 400);
-
-    const now = new Date().toISOString();
-    const id = crypto.randomUUID();
-    const ownerToken = createToken();
-    const ownerTokenHash = await hashToken(ownerToken);
-    const publicSlug = createSlug();
-
-    const db = await getDb();
-    await db
-      .prepare(`
-        INSERT INTO greetings (
-          id, owner_token_hash, public_slug, recipient_name, sender_name,
-          template, headline, message, surprise_message, music_url, music_name,
-          photos_json, birthday_date, opened_at, view_count, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?)
-      `)
-      .bind(
-        id,
-        ownerTokenHash,
-        publicSlug,
-        draft.recipientName,
-        draft.senderName,
-        draft.template,
-        draft.headline ||
-          `Төрсөн өдрийн мэнд, ${draft.recipientName}!`,
-        draft.message,
-        draft.surpriseMessage,
-        draft.musicUrl,
-        draft.musicName,
-        JSON.stringify(draft.photos),
-        draft.birthdayDate,
-        now,
-        now,
-      )
-      .run();
-
-    return Response.json(
-      {
-        id,
-        ownerToken,
-        publicSlug,
-        greeting: {
-          ...draft,
-          headline:
-            draft.headline || `Төрсөн өдрийн мэнд, ${draft.recipientName}!`,
-          publicSlug,
-          createdAt: now,
-        },
-      },
-      { status: 201 },
-    );
-  } catch (caught) {
-    const message =
-      caught instanceof Error ? caught.message : "Линк үүсгэхэд алдаа гарлаа.";
-    return error(message, 500);
-  }
+  void request;
+  return error(
+    "Мэндчилгээг нийтлэхийн өмнө төлбөрөө backend-ээр баталгаажуулна уу.",
+    402,
+  );
 }
 
 export async function PATCH(request: Request) {

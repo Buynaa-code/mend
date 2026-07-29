@@ -1,112 +1,85 @@
-# torsonodor
+# mend.
 
-A vinext (Cloudflare Worker) app backed by **Supabase** — Postgres for data,
-Supabase Storage for uploaded media.
+Төрсөн өдрийн интерактив мэндчилгээ үүсгэж, QPay төлбөр баталгаажсаны
+дараа нэг удаагийн `BDY-XXXXXX` эрхээр нийтэлдэг vinext/Cloudflare Worker апп.
 
-## Prerequisites
+## Үндсэн урсгал
 
-- Node.js `>=22.13.0`
-- A Supabase project. Create one at https://supabase.com.
+- `/create` — template, нэр, зураг, дуу, мессеж, mobile preview
+- `/pay` — 6,900₮ QPay QR, банкны deeplink, төлбөрийн төлөв
+- `/g/:slug` — хүлээн авагчийн public мэндчилгээ
+- `/dashboard` — нээлт, reaction, guestbook
 
-## Quick Start
+`1 төлбөр = 1 мэндчилгээний линк`. Frontend төлбөрийг амжилттай гэж
+тогтоохгүй. QPay callback ирсний дараа backend `/v2/payment/check` ашиглан
+баталгаажуулж, access code үүсгэнэ.
+
+## Технологи
+
+- vinext + React
+- Cloudflare Worker
+- D1: greeting, payment, access code, reaction
+- R2: зураг, дуу
+- Drizzle: schema болон migration
+
+## Local ажиллуулах
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in Supabase creds (see below)
+cp .env.example .env.local
 npm run dev
-npm run build
 ```
 
-## Supabase setup
+QPay sandbox ашиглахдаа `.env.local` дотор merchant credential болон
+`APP_SECRET`-ээ тохируулна. Нууц түлхүүрүүдийг client code-д оруулахгүй.
 
-1. In the Supabase dashboard, open **SQL Editor** and run
-   `supabase/migrations/0001_init.sql`. This creates the `greetings`,
-   `reactions`, `replies`, `admin_audit_logs` tables and the `greetings`
-   Storage bucket.
-2. Copy your project's URL and keys into `.env.local`:
-   - `SUPABASE_URL` — `https://<project>.supabase.co`
-   - `SUPABASE_ANON_KEY` — `sb_publishable_...` (browser-safe)
-   - `SUPABASE_SERVICE_ROLE_KEY` — `sb_secret_...` (server-only; bypasses RLS)
-   - `SUPABASE_MEDIA_BUCKET` — defaults to `greetings`
-3. Server code loads these from `env` (Cloudflare Worker bindings). The dev
-   server reads `.env.local` via `vite.config.ts` and injects them as Worker
-   `vars` for local runs.
+## Demo payment тест
 
-## Layout
+Эхний terminal:
 
-- `app/` — vinext app router (RSC + route handlers)
-- `app/api/greetings/route.ts` — greetings CRUD + state machine
-- `app/api/media/route.ts` — image upload / stream via Supabase Storage
-- `db/index.ts` — `getSupabaseAdmin()` server client + `getMediaBucket()`
-- `db/schema.ts` — TypeScript row types (source of truth for shape)
-- `supabase/migrations/` — SQL migrations for the Supabase project
-- `worker/index.ts` — Cloudflare Worker entry point
-
-## Workspace Auth Headers
-
-OpenAI workspace sites can read the current user's email from
-`oai-authenticated-user-email`.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```bash
+APP_SECRET='local-test-app-secret-32-characters-minimum' \
+PAYMENT_PROVIDER_MODE=demo \
+PAYMENT_DEMO_SECRET='local-demo-confirm-secret-2026' \
+npm run dev
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+Хоёр дахь terminal:
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
+```bash
+PAYMENT_DEMO_SECRET='local-demo-confirm-secret-2026' \
+npm run test:payment-flow
+```
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
+Энэ тест checkout, pending төлөв, backend confirm, `BDY-` код, concurrent
+publish, public data leak, dashboard token, code `used` төлвийг шалгана.
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
+## Бусад шалгалт
 
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
+```bash
+npm test
+npm run lint
+npm run typecheck
+```
 
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
+## Server environment
 
-## Useful Commands
+Заавал:
 
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
+- `APP_SECRET`
+- `QPAY_CLIENT_ID`
+- `QPAY_CLIENT_SECRET`
+- `QPAY_INVOICE_CODE`
 
-## Learn More
+Сонголтоор:
 
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Supabase JS client](https://supabase.com/docs/reference/javascript/introduction)
+- `PUBLIC_APP_URL`
+- `ADMIN_API_SECRET`
+- `QPAY_BASE_URL`
+- `QPAY_BRANCH_CODE`
+- `QPAY_STAFF_CODE`
+- `QPAY_TERMINAL_CODE`
+- `QPAY_INVOICE_OPTIONS_JSON`
+
+`POST /api/admin/payments` нь server-only bearer secret-ээр manual
+`approve`, `revoke`, `refund` үйлдэл хийж audit event хадгална.
