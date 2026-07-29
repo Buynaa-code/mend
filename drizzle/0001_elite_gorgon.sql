@@ -1,0 +1,1 @@
+CREATE INDEX `responses_greeting_id_idx` ON `responses` (`greeting_id`);

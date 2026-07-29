@@ -1,5 +1,5 @@
-import BirthdayApp from "./BirthdayApp";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return <BirthdayApp />;
+  redirect("/create");
 }

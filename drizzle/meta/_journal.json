@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1785318263121,
+      "tag": "0000_striped_doctor_spectrum",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1785318284031,
+      "tag": "0001_elite_gorgon",
+      "breakpoints": true
+    }
+  ]
+}

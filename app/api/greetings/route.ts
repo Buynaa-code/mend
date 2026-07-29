@@ -1,379 +1,359 @@
-import { headers } from "next/headers";
-import { getSupabaseAdmin } from "../../../db";
-import type { GreetingRow } from "../../../db/schema";
-import type {
-  EngagementStatus,
-  GreetingDraft,
-  GreetingStatus,
-  ModerationStatus,
-  PaymentStatus,
-} from "../../lib/greeting";
+import { ensureSchema, getDb } from "../../../db";
 import {
-  demoAccessCode,
-  isDraftReady,
+  type DashboardGreeting,
+  type GreetingDraft,
+  type PublicGreeting,
+  type ReactionType,
+  type TemplateId,
   sanitizePlainText,
+  templates,
 } from "../../lib/greeting";
 
-function readDraft(value: GreetingRow["draft_json"]) {
-  return value as unknown as GreetingDraft;
+type GreetingRow = {
+  id: string;
+  owner_token_hash: string;
+  public_slug: string;
+  recipient_name: string;
+  sender_name: string;
+  template: string;
+  headline: string;
+  message: string;
+  surprise_message: string;
+  music_url: string;
+  music_name: string;
+  photos_json: string;
+  birthday_date: string;
+  opened_at: string | null;
+  view_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+type ResponseRow = {
+  id: string;
+  type: string;
+  name: string;
+  message: string;
+  created_at: string;
+};
+
+const reactionTypes = new Set<ReactionType>(["heart", "party", "surprised"]);
+const templateIds = new Set(templates.map((template) => template.id));
+
+function error(message: string, status: number) {
+  return Response.json({ error: message }, { status });
 }
 
-function toResponse(row: GreetingRow) {
-  const draft = readDraft(row.draft_json);
+function readBearerToken(request: Request) {
+  const header = request.headers.get("authorization") ?? "";
+  return header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+}
+
+async function hashToken(token: string) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(token),
+  );
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function createToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return [...bytes]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function createSlug() {
+  return `mend-${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`;
+}
+
+function parsePhotos(value: string) {
+  try {
+    const photos = JSON.parse(value);
+    return Array.isArray(photos)
+      ? photos.filter((item): item is string => typeof item === "string").slice(0, 6)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function toPublicGreeting(row: GreetingRow): PublicGreeting {
   return {
-    ...draft,
-    greetingStatus: row.greeting_status,
-    paymentStatus: row.payment_status,
-    engagementStatus: row.engagement_status,
-    moderationStatus: row.moderation_status,
-    slug: row.slug ?? draft.slug,
-    updatedAt: row.updated_at,
+    publicSlug: row.public_slug,
+    recipientName: row.recipient_name,
+    senderName: row.sender_name,
+    template: (templateIds.has(row.template as TemplateId)
+      ? row.template
+      : "cute") as TemplateId,
+    headline: row.headline,
+    message: row.message,
+    surpriseMessage: row.surprise_message,
+    musicUrl: row.music_url,
+    musicName: row.music_name,
+    photos: parsePhotos(row.photos_json),
+    birthdayDate: row.birthday_date,
+    createdAt: row.created_at,
   };
 }
 
-function errorMessage(error: unknown) {
-  let message = "Unexpected error";
-  if (error instanceof Error) message = error.message;
-  else if (error && typeof error === "object" && "message" in error) {
-    message = String((error as { message?: unknown }).message ?? message);
+function isMediaUrl(value: string) {
+  if (!value) return true;
+  try {
+    const url = new URL(value, "https://mend.local");
+    return (
+      url.origin === "https://mend.local" &&
+      url.pathname === "/api/media" &&
+      (url.searchParams.get("key") ?? "").startsWith("greetings/")
+    );
+  } catch {
+    return false;
   }
-  const code =
-    error && typeof error === "object" && "code" in error
-      ? String((error as { code?: unknown }).code ?? "")
-      : "";
-  if (message.includes("Supabase server configuration")) {
-    return "Server sync тохируулагдаагүй байна. Draft төхөөрөмж дээр хадгалагдсан хэвээр.";
-  }
-  if (code === "PGRST205" || /relation .* does not exist/i.test(message)) {
-    return "Supabase table үүсээгүй байна. `supabase/migrations/0001_initial.sql`-ыг Supabase SQL Editor-т ажиллуулна уу.";
-  }
-  return message;
 }
 
-async function getCreatorEmail() {
-  const requestHeaders = await headers();
-  return requestHeaders.get("oai-authenticated-user-email");
+function cleanDraft(value: GreetingDraft): GreetingDraft {
+  return {
+    currentStep: 3,
+    recipientName: sanitizePlainText(value.recipientName ?? "", 40).trim(),
+    senderName: sanitizePlainText(value.senderName ?? "", 40).trim(),
+    template: templateIds.has(value.template) ? value.template : "cute",
+    headline: sanitizePlainText(value.headline ?? "", 90).trim(),
+    message: sanitizePlainText(value.message ?? "", 1500).trim(),
+    surpriseMessage: sanitizePlainText(value.surpriseMessage ?? "", 500).trim(),
+    musicUrl: String(value.musicUrl ?? "").slice(0, 500),
+    musicName: sanitizePlainText(value.musicName ?? "", 100).trim(),
+    photos: Array.isArray(value.photos)
+      ? value.photos.filter((photo) => typeof photo === "string").slice(0, 6)
+      : [],
+    birthdayDate: String(value.birthdayDate ?? "").slice(0, 10),
+  };
+}
+
+function validateDraft(draft: GreetingDraft) {
+  if (!draft.recipientName || !draft.senderName || !draft.message) {
+    return "Нэр болон мэндчилгээ дутуу байна.";
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.birthdayDate)) {
+    return "Төрсөн өдрийн огноо буруу байна.";
+  }
+  if (!draft.photos.length || draft.photos.some((photo) => !isMediaUrl(photo))) {
+    return "Зургаа бүрэн байршуулсны дараа линк үүсгэнэ үү.";
+  }
+  if (!isMediaUrl(draft.musicUrl)) {
+    return "Дууны файл буруу байна.";
+  }
+  return "";
 }
 
 export async function GET(request: Request) {
   try {
+    await ensureSchema();
+    const db = await getDb();
     const url = new URL(request.url);
-    const id = url.searchParams.get("id");
-    const slug = url.searchParams.get("slug");
-    const db = getSupabaseAdmin();
+    const slug = url.searchParams.get("slug")?.trim();
 
-    if (id || slug) {
-      const column = id ? "id" : "slug";
-      const value = id ?? slug ?? "";
-      const { data, error } = await db
-        .from("greetings")
-        .select("*")
-        .eq(column, value)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) {
-        return Response.json({ error: "Мэндчилгээ олдсонгүй." }, { status: 404 });
-      }
-      return Response.json({ greeting: toResponse(data) });
+    if (slug) {
+      const row = await db
+        .prepare("SELECT * FROM greetings WHERE public_slug = ? LIMIT 1")
+        .bind(slug)
+        .first<GreetingRow>();
+      if (!row) return error("Мэндчилгээ олдсонгүй.", 404);
+      return Response.json({ greeting: toPublicGreeting(row) });
     }
 
-    const { data, error } = await db
-      .from("greetings")
-      .select("*")
-      .order("updated_at", { ascending: false })
-      .limit(50);
-    if (error) throw error;
-    return Response.json({ greetings: (data ?? []).map(toResponse) });
-  } catch (error) {
-    return Response.json({ error: errorMessage(error) }, { status: 500 });
+    if (url.searchParams.get("dashboard") === "1") {
+      const ownerToken = readBearerToken(request);
+      if (ownerToken.length < 32) return error("Dashboard эрх олдсонгүй.", 401);
+      const ownerTokenHash = await hashToken(ownerToken);
+      const row = await db
+        .prepare("SELECT * FROM greetings WHERE owner_token_hash = ? LIMIT 1")
+        .bind(ownerTokenHash)
+        .first<GreetingRow>();
+      if (!row) return error("Мэндчилгээ олдсонгүй.", 404);
+
+      const responseRows = await db
+        .prepare(
+          "SELECT id, type, name, message, created_at FROM responses WHERE greeting_id = ? ORDER BY created_at DESC",
+        )
+        .bind(row.id)
+        .all<ResponseRow>();
+
+      const reactions: Record<ReactionType, number> = {
+        heart: 0,
+        party: 0,
+        surprised: 0,
+      };
+      const guestbook: DashboardGreeting["guestbook"] = [];
+      for (const item of responseRows.results) {
+        if (reactionTypes.has(item.type as ReactionType)) {
+          reactions[item.type as ReactionType] += 1;
+        } else if (item.type === "guestbook") {
+          guestbook.push({
+            id: item.id,
+            name: item.name,
+            message: item.message,
+            createdAt: item.created_at,
+          });
+        }
+      }
+
+      const greeting: DashboardGreeting = {
+        ...toPublicGreeting(row),
+        id: row.id,
+        openedAt: row.opened_at,
+        viewCount: row.view_count,
+        reactions,
+        guestbook,
+      };
+      return Response.json({ greeting });
+    }
+
+    return error("Хүсэлт тодорхойгүй байна.", 400);
+  } catch (caught) {
+    const message =
+      caught instanceof Error ? caught.message : "Өгөгдөл уншихад алдаа гарлаа.";
+    return error(message, 500);
   }
 }
 
 export async function POST(request: Request) {
   try {
+    await ensureSchema();
     const payload = (await request.json()) as { draft?: GreetingDraft };
-    if (!payload.draft?.id || !payload.draft.guestId) {
-      return Response.json({ error: "Draft мэдээлэл дутуу байна." }, { status: 400 });
-    }
+    if (!payload.draft) return error("Мэндчилгээний мэдээлэл дутуу байна.", 400);
 
-    const draft: GreetingDraft = {
-      ...payload.draft,
-      recipientName: sanitizePlainText(payload.draft.recipientName, 40),
-      senderName: sanitizePlainText(payload.draft.senderName, 40),
-      headline: sanitizePlainText(payload.draft.headline, 80),
-      greetingText: sanitizePlainText(payload.draft.greetingText, 1000),
-      secretMessage: sanitizePlainText(payload.draft.secretMessage, 500),
-      updatedAt: new Date().toISOString(),
-    };
-    const creatorEmail = await getCreatorEmail();
-    const db = getSupabaseAdmin();
-    const row: DatabaseGreetingInsert = {
-      id: draft.id,
-      guest_id: draft.guestId,
-      creator_email: creatorEmail,
-      recipient_name: draft.recipientName,
-      template_id: draft.templateId || null,
-      greeting_status: draft.greetingStatus,
-      payment_status: draft.paymentStatus,
-      engagement_status: draft.engagementStatus,
-      moderation_status: draft.moderationStatus,
-      slug: draft.slug || null,
-      draft_json: draft as unknown as Record<string, unknown>,
-      created_at: draft.createdAt,
-      updated_at: draft.updatedAt,
-    };
+    const draft = cleanDraft(payload.draft);
+    const validationError = validateDraft(draft);
+    if (validationError) return error(validationError, 400);
 
-    const { error } = await db.from("greetings").upsert(row, { onConflict: "id" });
-    if (error) throw error;
-    return Response.json({ greeting: draft, savedAt: draft.updatedAt });
-  } catch (error) {
-    return Response.json({ error: errorMessage(error) }, { status: 500 });
+    const now = new Date().toISOString();
+    const id = crypto.randomUUID();
+    const ownerToken = createToken();
+    const ownerTokenHash = await hashToken(ownerToken);
+    const publicSlug = createSlug();
+
+    const db = await getDb();
+    await db
+      .prepare(`
+        INSERT INTO greetings (
+          id, owner_token_hash, public_slug, recipient_name, sender_name,
+          template, headline, message, surprise_message, music_url, music_name,
+          photos_json, birthday_date, opened_at, view_count, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?)
+      `)
+      .bind(
+        id,
+        ownerTokenHash,
+        publicSlug,
+        draft.recipientName,
+        draft.senderName,
+        draft.template,
+        draft.headline ||
+          `Төрсөн өдрийн мэнд, ${draft.recipientName}!`,
+        draft.message,
+        draft.surpriseMessage,
+        draft.musicUrl,
+        draft.musicName,
+        JSON.stringify(draft.photos),
+        draft.birthdayDate,
+        now,
+        now,
+      )
+      .run();
+
+    return Response.json(
+      {
+        id,
+        ownerToken,
+        publicSlug,
+        greeting: {
+          ...draft,
+          headline:
+            draft.headline || `Төрсөн өдрийн мэнд, ${draft.recipientName}!`,
+          publicSlug,
+          createdAt: now,
+        },
+      },
+      { status: 201 },
+    );
+  } catch (caught) {
+    const message =
+      caught instanceof Error ? caught.message : "Линк үүсгэхэд алдаа гарлаа.";
+    return error(message, 500);
   }
 }
 
-type DatabaseGreetingInsert = {
-  id: string;
-  guest_id: string;
-  creator_email: string | null;
-  recipient_name: string;
-  template_id: string | null;
-  greeting_status: string;
-  payment_status: string;
-  engagement_status: string;
-  moderation_status: string;
-  slug: string | null;
-  draft_json: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-};
-
-type ActionPayload = {
-  id?: string;
-  action?:
-    | "start-payment"
-    | "confirm-demo-payment"
-    | "redeem-code"
-    | "publish"
-    | "open"
-    | "react"
-    | "reply"
-    | "moderate";
-  emoji?: string;
-  message?: string;
-  sessionId?: string;
-  moderationStatus?: ModerationStatus;
-  reason?: string;
-  accessCode?: string;
-};
-
 export async function PATCH(request: Request) {
   try {
-    const payload = (await request.json()) as ActionPayload;
-    if (!payload.id || !payload.action) {
-      return Response.json({ error: "Үйлдэл тодорхойгүй байна." }, { status: 400 });
-    }
-
-    const db = getSupabaseAdmin();
-    const { data: row, error: findError } = await db
-      .from("greetings")
-      .select("*")
-      .eq("id", payload.id)
-      .maybeSingle();
-    if (findError) throw findError;
-    if (!row) {
-      return Response.json({ error: "Мэндчилгээ олдсонгүй." }, { status: 404 });
-    }
-
-    const draft = readDraft(row.draft_json);
-    const now = new Date();
-    let greetingStatus = row.greeting_status as GreetingStatus;
-    let paymentStatus = row.payment_status as PaymentStatus;
-    let engagementStatus = row.engagement_status as EngagementStatus;
-    let moderationStatus = row.moderation_status as ModerationStatus;
-    let slug = row.slug;
-    let publishedAt = row.published_at;
-    let firstOpenedAt = row.first_opened_at;
-    let lastOpenedAt = row.last_opened_at;
-    let totalViewCount = row.total_view_count;
-    let uniqueViewCount = row.unique_view_count;
-
-    switch (payload.action) {
-      case "start-payment":
-        greetingStatus = "READY_TO_PAY";
-        paymentStatus = "PENDING";
-        break;
-      case "confirm-demo-payment":
-        if (paymentStatus !== "PENDING") {
-          return Response.json(
-            { error: "Хүлээгдэж буй demo төлбөр алга байна." },
-            { status: 409 },
-          );
-        }
-        paymentStatus = "SUCCESS";
-        greetingStatus = "DRAFT";
-        draft.accessCode =
-          draft.accessCode ||
-          `MEND-${crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase()}`;
-        draft.accessCodeApplied = false;
-        break;
-      case "redeem-code": {
-        const submittedCode = sanitizePlainText(payload.accessCode ?? "", 20)
-          .trim()
-          .toUpperCase();
-        const isDemoCode = submittedCode === demoAccessCode;
-        if (
-          !isDemoCode &&
-          (paymentStatus !== "SUCCESS" ||
-            !draft.accessCode ||
-            submittedCode !== draft.accessCode)
-        ) {
-          return Response.json(
-            { error: "Эрхийн код буруу эсвэл ашиглах боломжгүй байна." },
-            { status: 409 },
-          );
-        }
-        if (isDemoCode) {
-          paymentStatus = "SUCCESS";
-          draft.accessCode = demoAccessCode;
-        }
-        draft.accessCodeApplied = true;
-        greetingStatus = isDraftReady(draft) ? "READY_TO_PUBLISH" : "DRAFT";
-        break;
-      }
-      case "publish":
-        if (paymentStatus !== "SUCCESS" || !draft.accessCodeApplied) {
-          return Response.json(
-            { error: "Төлбөрийн эрхийн код идэвхжээгүй байна." },
-            { status: 409 },
-          );
-        }
-        if (!isDraftReady(draft)) {
-          return Response.json(
-            { error: "Мэндчилгээний мэдээлэл дутуу байна." },
-            { status: 409 },
-          );
-        }
-        slug =
-          slug ||
-          `${draft.recipientName.toLowerCase().replace(/\s+/g, "-")}-${draft.id.slice(-5)}`;
-        greetingStatus = "PUBLISHED";
-        engagementStatus = "NOT_OPENED";
-        publishedAt = now.toISOString();
-        break;
-      case "open":
-        if (greetingStatus !== "PUBLISHED" || moderationStatus === "BLOCKED") {
-          return Response.json(
-            { error: "Энэ мэндчилгээг нээх боломжгүй байна." },
-            { status: 403 },
-          );
-        }
-        engagementStatus = "OPENED";
-        firstOpenedAt ||= now.toISOString();
-        lastOpenedAt = now.toISOString();
-        totalViewCount += 1;
-        uniqueViewCount += payload.sessionId ? 1 : 0;
-        break;
-      case "react": {
-        const emoji = sanitizePlainText(payload.emoji ?? "", 4);
-        if (!emoji || !payload.sessionId) {
-          return Response.json({ error: "Reaction мэдээлэл дутуу байна." }, { status: 400 });
-        }
-        const { error } = await db.from("reactions").upsert(
-          {
-            id: crypto.randomUUID(),
-            greeting_id: row.id,
-            session_id: payload.sessionId,
-            emoji,
-            created_at: now.toISOString(),
-            updated_at: now.toISOString(),
-          },
-          { onConflict: "greeting_id,session_id" },
-        );
-        if (error) throw error;
-        engagementStatus = "REACTED";
-        draft.reaction = emoji;
-        break;
-      }
-      case "reply": {
-        if (!draft.allowReply || !payload.sessionId) {
-          return Response.json(
-            { error: "Хариу илгээх эрх хаалттай байна." },
-            { status: 403 },
-          );
-        }
-        const message = sanitizePlainText(payload.message ?? "", 500).trim();
-        if (!message) {
-          return Response.json({ error: "Хариу хоосон байна." }, { status: 400 });
-        }
-        const { error } = await db.from("replies").insert({
-          id: crypto.randomUUID(),
-          greeting_id: row.id,
-          session_id: payload.sessionId,
-          message,
-          created_at: now.toISOString(),
-        });
-        if (error) throw error;
-        engagementStatus = "REPLIED";
-        draft.reply = message;
-        break;
-      }
-      case "moderate": {
-        moderationStatus = payload.moderationStatus ?? "UNDER_REVIEW";
-        if (moderationStatus === "BLOCKED") greetingStatus = "BLOCKED";
-        if (moderationStatus === "RESTORED" && greetingStatus === "BLOCKED") {
-          greetingStatus = publishedAt ? "PUBLISHED" : "DRAFT";
-        }
-        const { error } = await db.from("admin_audit_logs").insert({
-          id: crypto.randomUUID(),
-          greeting_id: row.id,
-          actor: "demo-admin",
-          action: "MODERATION_STATUS_CHANGED",
-          previous_value: row.moderation_status,
-          next_value: moderationStatus,
-          reason: sanitizePlainText(payload.reason ?? "", 300),
-          created_at: now.toISOString(),
-        });
-        if (error) throw error;
-        break;
-      }
-    }
-
-    const nextDraft: GreetingDraft = {
-      ...draft,
-      greetingStatus,
-      paymentStatus,
-      engagementStatus,
-      moderationStatus,
-      slug: slug ?? "",
-      updatedAt: now.toISOString(),
+    await ensureSchema();
+    const payload = (await request.json()) as {
+      slug?: string;
+      action?: "open" | "react" | "guestbook";
+      sessionId?: string;
+      reactionType?: ReactionType;
+      name?: string;
+      message?: string;
     };
-    const expiresAt =
-      payload.action === "publish"
-        ? new Date(now.getTime() + nextDraft.expiresInDays * 86_400_000).toISOString()
-        : row.expires_at;
+    const slug = sanitizePlainText(payload.slug ?? "", 80).trim();
+    const sessionId = sanitizePlainText(payload.sessionId ?? "", 100).trim();
+    if (!slug || !payload.action || !sessionId) {
+      return error("Үйлдлийн мэдээлэл дутуу байна.", 400);
+    }
 
-    const { error: updateError } = await db
-      .from("greetings")
-      .update({
-        greeting_status: greetingStatus,
-        payment_status: paymentStatus,
-        engagement_status: engagementStatus,
-        moderation_status: moderationStatus,
-        slug,
-        draft_json: nextDraft as unknown as Record<string, unknown>,
-        first_opened_at: firstOpenedAt,
-        last_opened_at: lastOpenedAt,
-        total_view_count: totalViewCount,
-        unique_view_count: uniqueViewCount,
-        published_at: publishedAt,
-        expires_at: expiresAt,
-        updated_at: now.toISOString(),
-      })
-      .eq("id", row.id);
-    if (updateError) throw updateError;
+    const db = await getDb();
+    const row = await db
+      .prepare("SELECT id FROM greetings WHERE public_slug = ? LIMIT 1")
+      .bind(slug)
+      .first<{ id: string }>();
+    if (!row) return error("Мэндчилгээ олдсонгүй.", 404);
 
-    return Response.json({ greeting: nextDraft });
-  } catch (error) {
-    return Response.json({ error: errorMessage(error) }, { status: 500 });
+    const now = new Date().toISOString();
+    if (payload.action === "open") {
+      await db
+        .prepare(
+          "UPDATE greetings SET opened_at = COALESCE(opened_at, ?), view_count = view_count + 1, updated_at = ? WHERE id = ?",
+        )
+        .bind(now, now, row.id)
+        .run();
+      return Response.json({ ok: true });
+    }
+
+    if (payload.action === "react") {
+      if (!payload.reactionType || !reactionTypes.has(payload.reactionType)) {
+        return error("Reaction буруу байна.", 400);
+      }
+      await db
+        .prepare(
+          "INSERT INTO responses (id, greeting_id, session_id, type, name, message, created_at) VALUES (?, ?, ?, ?, '', '', ?)",
+        )
+        .bind(
+          crypto.randomUUID(),
+          row.id,
+          sessionId,
+          payload.reactionType,
+          now,
+        )
+        .run();
+      return Response.json({ ok: true });
+    }
+
+    const name =
+      sanitizePlainText(payload.name ?? "", 40).trim() || "Нууц зочин";
+    const message = sanitizePlainText(payload.message ?? "", 400).trim();
+    if (!message) return error("Мэндчилгээ хоосон байна.", 400);
+    await db
+      .prepare(
+        "INSERT INTO responses (id, greeting_id, session_id, type, name, message, created_at) VALUES (?, ?, ?, 'guestbook', ?, ?, ?)",
+      )
+      .bind(crypto.randomUUID(), row.id, sessionId, name, message, now)
+      .run();
+    return Response.json({ ok: true });
+  } catch (caught) {
+    const message =
+      caught instanceof Error ? caught.message : "Хариу хадгалахад алдаа гарлаа.";
+    return error(message, 500);
   }
 }

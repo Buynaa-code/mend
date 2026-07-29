@@ -1,60 +1,39 @@
-export interface GreetingRow {
-  id: string;
-  guest_id: string | null;
-  creator_email: string | null;
-  recipient_name: string;
-  template_id: string | null;
-  greeting_status: string;
-  payment_status: string;
-  engagement_status: string;
-  moderation_status: string;
-  slug: string | null;
-  draft_json: Record<string, unknown>;
-  total_view_count: number;
-  unique_view_count: number;
-  first_opened_at: string | null;
-  last_opened_at: string | null;
-  published_at: string | null;
-  expires_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-export interface ReactionRow {
-  id: string;
-  greeting_id: string;
-  session_id: string;
-  emoji: string;
-  created_at: string;
-  updated_at: string;
-}
+export const greetings = sqliteTable("greetings", {
+  id: text("id").primaryKey(),
+  ownerTokenHash: text("owner_token_hash").notNull().unique(),
+  publicSlug: text("public_slug").notNull().unique(),
+  recipientName: text("recipient_name").notNull(),
+  senderName: text("sender_name").notNull(),
+  template: text("template").notNull(),
+  headline: text("headline").notNull(),
+  message: text("message").notNull(),
+  surpriseMessage: text("surprise_message").notNull(),
+  musicUrl: text("music_url").notNull(),
+  musicName: text("music_name").notNull(),
+  photosJson: text("photos_json").notNull(),
+  birthdayDate: text("birthday_date").notNull(),
+  openedAt: text("opened_at"),
+  viewCount: integer("view_count").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
 
-export interface ReplyRow {
-  id: string;
-  greeting_id: string;
-  session_id: string;
-  message: string;
-  created_at: string;
-}
-
-export interface AdminAuditLogRow {
-  id: string;
-  greeting_id: string | null;
-  actor: string;
-  action: string;
-  previous_value: string | null;
-  next_value: string | null;
-  reason: string | null;
-  created_at: string;
-}
-
-export interface Database {
-  public: {
-    Tables: {
-      greetings: { Row: GreetingRow; Insert: Partial<GreetingRow> & Pick<GreetingRow, "id" | "draft_json" | "created_at" | "updated_at">; Update: Partial<GreetingRow> };
-      reactions: { Row: ReactionRow; Insert: ReactionRow; Update: Partial<ReactionRow> };
-      replies: { Row: ReplyRow; Insert: ReplyRow; Update: Partial<ReplyRow> };
-      admin_audit_logs: { Row: AdminAuditLogRow; Insert: AdminAuditLogRow; Update: Partial<AdminAuditLogRow> };
-    };
-  };
-}
+export const responses = sqliteTable(
+  "responses",
+  {
+    id: text("id").primaryKey(),
+    greetingId: text("greeting_id")
+      .notNull()
+      .references(() => greetings.id, { onDelete: "cascade" }),
+    sessionId: text("session_id").notNull(),
+    type: text("type").notNull(),
+    name: text("name").notNull(),
+    message: text("message").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("responses_greeting_id_idx").on(table.greetingId),
+  ],
+);
