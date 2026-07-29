@@ -1788,13 +1788,14 @@ img {
 }
 
 .recipient-gifts button > span {
-  width: 108px;
-  height: 108px;
+  width: 128px;
+  height: 128px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: #f4cd67;
   color: #664f36;
+  overflow: hidden;
 }
 
 .recipient-gifts button:nth-child(2) > span {
@@ -1810,6 +1811,12 @@ img {
 .recipient-gifts button > span svg {
   width: 50px;
   height: 50px;
+}
+
+.recipient-gifts button > span .giraffe {
+  width: 118px;
+  height: 118px;
+  transform: translateY(5px);
 }
 
 .recipient-gifts button strong {
@@ -1830,6 +1837,23 @@ img {
   align-items: center;
 }
 
+.memory-heading {
+  width: min(100%, 760px);
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.memory-heading > .giraffe {
+  width: 132px;
+  height: 148px;
+}
+
+.memory-heading > div {
+  min-width: 0;
+}
+
 .search-title {
   display: flex;
   align-items: center;
@@ -1843,7 +1867,7 @@ img {
 }
 
 .memory-search {
-  width: min(100%, 690px);
+  width: 100%;
   height: 48px;
   display: flex;
   align-items: center;
@@ -1898,6 +1922,24 @@ img {
   align-items: center;
 }
 
+.letter-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.letter-heading > .giraffe {
+  width: 132px;
+  height: 145px;
+}
+
+.letter-heading > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .letter-seal {
   width: 54px;
   height: 54px;
@@ -1908,14 +1950,14 @@ img {
   color: #fff;
 }
 
-.letter-scene > small {
+.letter-heading small {
   margin-top: 10px;
   color: var(--purple);
   font-size: 11px;
   font-weight: 900;
 }
 
-.letter-scene > h1 {
+.letter-heading h1 {
   margin: 0;
   color: var(--purple-dark);
   font-size: 36px;
@@ -1949,9 +1991,10 @@ img {
   text-align: right;
 }
 
-.music-scene > svg {
-  margin-bottom: 16px;
-  color: var(--purple-dark);
+.music-scene > .giraffe {
+  width: 190px;
+  height: 220px;
+  margin-bottom: 3px;
 }
 
 .music-scene h1 {
@@ -2632,13 +2675,33 @@ img {
     height: 72px;
   }
 
+  .recipient-gifts button > span .giraffe {
+    width: 70px;
+    height: 70px;
+    transform: translateY(3px);
+  }
+
   .recipient-gifts button > span svg {
     width: 34px;
     height: 34px;
   }
 
+  .memory-heading {
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .memory-heading > .giraffe {
+    width: 84px;
+    height: 100px;
+  }
+
   .search-title h1 {
-    font-size: 29px;
+    font-size: 27px;
+  }
+
+  .search-title > svg {
+    width: 22px;
   }
 
   .memory-gallery {
@@ -2658,6 +2721,29 @@ img {
 
   .letter-paper p {
     font-size: 15px;
+  }
+
+  .letter-heading {
+    gap: 8px;
+  }
+
+  .letter-heading > .giraffe {
+    width: 100px;
+    height: 112px;
+  }
+
+  .letter-heading h1 {
+    font-size: 29px;
+  }
+
+  .letter-seal {
+    width: 44px;
+    height: 44px;
+  }
+
+  .music-scene > .giraffe {
+    width: 150px;
+    height: 175px;
   }
 
   .music-player {

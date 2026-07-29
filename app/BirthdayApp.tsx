@@ -131,12 +131,68 @@ function IconButton({
   );
 }
 
-function Giraffe({ className = "" }: { className?: string }) {
+type MascotVariant =
+  | "intro"
+  | "pout"
+  | "celebrate"
+  | "camera"
+  | "letter"
+  | "music"
+  | "cake";
+
+const mascotVariants: Record<MascotVariant, { src: string; alt: string }> = {
+  intro: {
+    src: "/assets/mend-giraffe.png",
+    alt: "Цэцэг, захиа барьсан хөөрхөн анааш",
+  },
+  pout: {
+    src: "/assets/mend-giraffe-pout.png",
+    alt: "Гомдсон дүртэй хөөрхөн анааш",
+  },
+  celebrate: {
+    src: "/assets/mend-giraffe-celebrate.png",
+    alt: "Баярлан бүжиглэж буй хөөрхөн анааш",
+  },
+  camera: {
+    src: "/assets/mend-giraffe-camera.png",
+    alt: "Камер барьсан хөөрхөн анааш",
+  },
+  letter: {
+    src: "/assets/mend-giraffe-letter.png",
+    alt: "Захиа тэвэрсэн хөөрхөн анааш",
+  },
+  music: {
+    src: "/assets/mend-giraffe-music.png",
+    alt: "Хөгжим сонсон бүжиглэж буй хөөрхөн анааш",
+  },
+  cake: {
+    src: "/assets/mend-giraffe-cake.png",
+    alt: "Төрсөн өдрийн бялуу барьсан хөөрхөн анааш",
+  },
+};
+
+const creatorMascotVariants: MascotVariant[] = [
+  "intro",
+  "camera",
+  "music",
+  "celebrate",
+];
+
+function Giraffe({
+  variant = "intro",
+  className = "",
+}: {
+  variant?: MascotVariant;
+  className?: string;
+}) {
+  const mascot = mascotVariants[variant];
+
   return (
     <img
       className={`giraffe ${className}`}
-      src="/assets/mend-giraffe.png"
-      alt="Цэцэг, захиа барьсан хөөрхөн анааш"
+      src={mascot.src}
+      alt={mascot.alt}
+      draggable={false}
     />
   );
 }
@@ -205,7 +261,7 @@ function MiniPreview({ draft }: { draft: GreetingDraft }) {
         <img src={photo} alt="" />
         <Camera size={19} />
       </div>
-      <Giraffe className="mini-giraffe" />
+      <Giraffe variant="cake" className="mini-giraffe" />
       <p>{draft.recipientName || "Таны дотны хүнд"}</p>
     </div>
   );
@@ -418,7 +474,7 @@ function CreatorApp({
     <div className="creator-studio">
       <aside className="studio-rail">
         <div className="rail-mascot">
-          <Giraffe />
+          <Giraffe variant={creatorMascotVariants[step] ?? "intro"} />
           <div>
             <strong>{draft.recipientName || "Шинэ мэндчилгээ"}</strong>
             <span>{step + 1} / 4 алхам</span>
@@ -916,7 +972,7 @@ function RecipientApp({
           <div className="intro-scene">
             <p>Хөөе! Би чамд нэг зүйл бэлдсэн.</p>
             <h1>Үзмээр байна уу?</h1>
-            <Giraffe />
+            <Giraffe variant="intro" />
             <div className="yes-no-row">
               <Button
                 onClick={() => {
@@ -933,7 +989,7 @@ function RecipientApp({
 
         {screen === "tease" && (
           <div className="tease-scene">
-            <Giraffe />
+            <Giraffe variant="pout" />
             <small>Өө, үнэхээр үү?</small>
             <h1>Жаахан бодоод дахин оролдоорой.</h1>
             <Button icon={<ArrowLeft size={18} />} onClick={() => setScreen("intro")}>Буцах</Button>
@@ -942,7 +998,7 @@ function RecipientApp({
 
         {screen === "ready" && (
           <div className="ready-scene">
-            <Giraffe />
+            <Giraffe variant="celebrate" />
             <h1>Сайн сонголт!</h1>
             <p>Бяцхан бэлгүүд чамайг хүлээж байна.</p>
             <Button icon={<Sparkles size={18} />} onClick={() => setScreen("cover")}>Нээх</Button>
@@ -960,7 +1016,7 @@ function RecipientApp({
               <div className="camera-bottom"><span>memory 01</span><i /></div>
             </div>
             <h1>{draft.headline || `Төрсөн өдрийн мэнд, ${draft.recipientName || "миний дотны хүн"}!`}</h1>
-            <Giraffe />
+            <Giraffe variant="cake" />
             <Button icon={<ArrowRight size={18} />} onClick={() => setScreen("gifts")}>Дараах</Button>
           </div>
         )}
@@ -971,17 +1027,17 @@ function RecipientApp({
             <h1>Чамд зориулсан 3 бэлэг</h1>
             <div className="recipient-gifts">
               <button type="button" onClick={() => openGift("memories")}>
-                <span><Camera /></span>
+                <span><Giraffe variant="camera" /></span>
                 <strong>Дурсамж</strong>
                 {openedGifts.includes("memories") && <CheckCircle2 />}
               </button>
               <button type="button" onClick={() => openGift("letter")}>
-                <span><Mail /></span>
+                <span><Giraffe variant="letter" /></span>
                 <strong>Захиа</strong>
                 {openedGifts.includes("letter") && <CheckCircle2 />}
               </button>
               <button type="button" onClick={() => openGift("music")}>
-                <span><CassetteTape /></span>
+                <span><Giraffe variant="music" /></span>
                 <strong>Аялгуу</strong>
                 {openedGifts.includes("music") && <CheckCircle2 />}
               </button>
@@ -999,8 +1055,13 @@ function RecipientApp({
 
         {screen === "memories" && (
           <div className="memories-scene">
-            <div className="search-title"><Camera size={28} /><h1>Бидний дурсамж</h1></div>
-            <div className="memory-search"><span>Бидний мөчүүд</span><Heart size={18} fill="currentColor" /></div>
+            <div className="memory-heading">
+              <Giraffe variant="camera" />
+              <div>
+                <div className="search-title"><Camera size={28} /><h1>Бидний дурсамж</h1></div>
+                <div className="memory-search"><span>Бидний мөчүүд</span><Heart size={18} fill="currentColor" /></div>
+              </div>
+            </div>
             <div className="memory-gallery">
               {photos.slice(0, 6).map((photo, index) => (
                 <img src={photo} alt={`Дурсамж ${index + 1}`} key={`${photo}-${index}`} />
@@ -1012,9 +1073,14 @@ function RecipientApp({
 
         {screen === "letter" && (
           <div className="letter-scene">
-            <span className="letter-seal"><Mail size={25} /></span>
-            <small>{draft.senderName || "Таны дотны хүн"}-ээс</small>
-            <h1>{draft.recipientName || "Чамдаа"}</h1>
+            <div className="letter-heading">
+              <Giraffe variant="letter" />
+              <div>
+                <span className="letter-seal"><Mail size={25} /></span>
+                <small>{draft.senderName || "Таны дотны хүн"}-ээс</small>
+                <h1>{draft.recipientName || "Чамдаа"}</h1>
+              </div>
+            </div>
             <div className="letter-paper">
               <p>
                 {draft.greetingText ||
@@ -1028,7 +1094,7 @@ function RecipientApp({
 
         {screen === "music" && (
           <div className="music-scene">
-            <CassetteTape size={62} />
+            <Giraffe variant="music" />
             <small>Чамд зориулсан аялгуу</small>
             <h1>{draft.musicId === "warm-memory" ? "Warm memory" : "Sunny day"}</h1>
             <div className="music-player">
@@ -1045,7 +1111,7 @@ function RecipientApp({
 
         {screen === "finale" && (
           <div className="finale-scene">
-            <Giraffe />
+            <Giraffe variant="celebrate" />
             <small>Төрсөн өдрийн мэнд</small>
             <h1>
               {draft.secretMessage ||
