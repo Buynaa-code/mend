@@ -79,7 +79,7 @@ export async function POST(request: Request) {
         : modeLower === "wire"
         ? "wire"
         : "qpay";
-    const configuredOrigin = bindings.PUBLIC_APP_URL?.trim();
+    const configuredOrigin = bindings.PUBLIC_APP_URL?.trim().replace(/\/+$/, "");
     const callbackOrigin = configuredOrigin || new URL(request.url).origin;
 
     const db = await getDb();
@@ -122,6 +122,8 @@ export async function POST(request: Request) {
               orderId,
               email,
               allowedOperators: wireOperators,
+              successUrl: `${callbackOrigin}/pay?payment=${encodeURIComponent(paymentId)}`,
+              cancelUrl: `${callbackOrigin}/pay?payment=${encodeURIComponent(paymentId)}`,
             })
           : await createProviderInvoice({
               paymentId,

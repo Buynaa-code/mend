@@ -1504,6 +1504,22 @@ img {
   font-size: 9px;
 }
 
+.qpay-checkout-button {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin: 0 auto 15px;
+  padding: 0 20px;
+  border-radius: 9px;
+  background: #e84d68;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 1000;
+  box-shadow: 0 6px 16px rgba(232, 77, 104, 0.28);
+}
+
 .qpay-short-link {
   min-height: 42px;
   display: flex;

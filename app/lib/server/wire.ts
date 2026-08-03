@@ -41,6 +41,13 @@ type WireOperatorConnectionList = {
   }>;
 };
 
+type WireCheckoutSession = {
+  id?: string;
+  object?: string;
+  url?: string;
+  payment_intent?: string;
+};
+
 export function isWireMode(mode?: string) {
   return mode?.trim().toLowerCase() === "wire";
 }
@@ -144,40 +151,66 @@ async function wireRequest<T>(
   return data as T;
 }
 
-function extractOperatorArtifacts(nextAction: WireNextAction) {
-  if (!nextAction || typeof nextAction !== "object") {
-    return { qrText: "", qrImage: "", shortUrl: "", deeplinks: [] };
+function isHttpsUrl(value: string) {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
   }
-  const action = nextAction as Record<string, unknown>;
-  const qrText = String(action.qr_text ?? action.qr ?? action.qrCode ?? "");
-  const qrImage = String(action.qr_image ?? action.qr_base64 ?? "");
-  const shortUrl = String(
-    action.short_url ?? action.redirect_url ?? action.link ?? "",
-  );
-  const urls = Array.isArray(action.urls) ? action.urls : [];
-  const deeplinks = urls
-    .map((raw) => {
-      if (!raw || typeof raw !== "object") return null;
-      const item = raw as Record<string, unknown>;
-      const name = String(item.name ?? "");
-      const link = String(item.link ?? item.url ?? "");
-      if (!name || !link) return null;
-      return {
-        name,
-        description: String(item.description ?? ""),
-        logo: String(item.logo ?? ""),
-        link,
-      };
-    })
-    .filter((item): item is NonNullable<typeof item> => item !== null);
-  return { qrText, qrImage, shortUrl, deeplinks };
 }
 
+/**
+ * Hosted checkout sessions are documented as form-encoded, but the rest of the
+ * API also speaks JSON. Try the documented shape first and fall back once so a
+ * format mismatch cannot take checkout down.
+ */
+async function createWireCheckoutSession(input: {
+  paymentId: string;
+  paymentIntentId: string;
+  successUrl: string;
+  cancelUrl: string;
+}) {
+  const fields: Record<string, string> = {
+    payment_intent: input.paymentIntentId,
+  };
+  if (isHttpsUrl(input.successUrl)) fields.success_url = input.successUrl;
+  if (isHttpsUrl(input.cancelUrl)) fields.cancel_url = input.cancelUrl;
+
+  const idempotencyKey = `${input.paymentId}:checkout-session`;
+  try {
+    return await wireRequest<WireCheckoutSession>("/v1/checkout/sessions", {
+      method: "POST",
+      idempotencyKey,
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(fields).toString(),
+    });
+  } catch (formError) {
+    try {
+      return await wireRequest<WireCheckoutSession>("/v1/checkout/sessions", {
+        method: "POST",
+        idempotencyKey,
+        body: JSON.stringify(fields),
+      });
+    } catch {
+      throw formError;
+    }
+  }
+}
+
+/**
+ * Creates a PaymentIntent and opens a Wire-hosted checkout session for it.
+ *
+ * The intent is deliberately left unconfirmed: sessions are only accepted on
+ * intents in `requires_payment_method`, and the hosted page is what renders the
+ * QR code plus the bank deeplinks that let a buyer pay from the same phone.
+ */
 export async function createWireInvoice(input: {
   paymentId: string;
   orderId: string;
   email: string;
   allowedOperators: string[];
+  successUrl: string;
+  cancelUrl: string;
 }) {
   await assertWireConfiguration();
   const bindings = await getAppBindings();
@@ -191,7 +224,8 @@ export async function createWireInvoice(input: {
       amount: GREETING_PRICE,
       currency: PAYMENT_CURRENCY,
       description,
-      automatic_operator: true,
+      // No `automatic_operator`: the hosted checkout page picks the operator,
+      // and the intent must stay in `requires_payment_method` for the session.
       allowed_operators: input.allowedOperators,
       metadata: {
         payment_id: input.paymentId,
@@ -206,23 +240,25 @@ export async function createWireInvoice(input: {
     throw new Error("wire.mn PaymentIntent ID буцаагаагүй.");
   }
 
-  const confirmed = await wireRequest<WirePaymentIntent>(
-    `/v1/payment_intents/${encodeURIComponent(created.id)}/confirm`,
-    {
-      method: "POST",
-      idempotencyKey: `${input.paymentId}:confirm`,
-      body: JSON.stringify({}),
-    },
-  );
+  const session = await createWireCheckoutSession({
+    paymentId: input.paymentId,
+    paymentIntentId: created.id,
+    successUrl: input.successUrl,
+    cancelUrl: input.cancelUrl,
+  });
 
-  const artifacts = extractOperatorArtifacts(confirmed.next_action);
+  const checkoutUrl = String(session.url ?? "");
+  if (!checkoutUrl) {
+    throw new Error("wire.mn checkout session URL буцаагаагүй.");
+  }
+
   return {
     provider: "wire" as const,
     invoiceId: created.id,
-    qrText: artifacts.qrText,
-    qrImage: artifacts.qrImage,
-    shortUrl: artifacts.shortUrl,
-    deeplinks: artifacts.deeplinks,
+    qrText: "",
+    qrImage: "",
+    shortUrl: checkoutUrl,
+    deeplinks: [],
   };
 }
 

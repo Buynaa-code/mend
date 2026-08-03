@@ -373,13 +373,24 @@ export function PaymentApp() {
                 </div>
               ) : (
                 <>
-                  <div className="qpay-qr">
-                    {qrSource ? (
+                  {qrSource ? (
+                    <div className="qpay-qr">
                       <img src={qrSource} alt="QPay төлбөрийн QR код" />
-                    ) : (
+                    </div>
+                  ) : payment.shortUrl ? (
+                    <a
+                      className="qpay-checkout-button"
+                      href={payment.shortUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <ExternalLink size={19} /> Төлбөрийн хуудсыг нээх
+                    </a>
+                  ) : (
+                    <div className="qpay-qr">
                       <QrCode size={94} />
-                    )}
-                  </div>
+                    </div>
+                  )}
                   <div className="payment-state">
                     {payment.status === "processing" ? (
                       <LoaderCircle size={19} className="spin" />
@@ -390,16 +401,24 @@ export function PaymentApp() {
                       <strong>
                         {payment.status === "processing"
                           ? "Төлбөрийг баталгаажуулж байна"
-                          : "QR кодоо уншуулна уу"}
+                          : qrSource
+                            ? "QR кодоо уншуулна уу"
+                            : payment.shortUrl
+                              ? "Дээрх товчоор төлбөрөө төлнө үү"
+                              : "Төлбөрийн холбоосыг бэлдэж байна"}
                       </strong>
                       <small>
                         {payment.status === "processing"
                           ? "QPay-аас ирсэн төлбөрийг backend шалгаж байна."
-                          : "Банкны апп эсвэл QPay ашиглана уу."}
+                          : qrSource
+                            ? "Банкны апп эсвэл QPay ашиглана уу."
+                            : payment.shortUrl
+                              ? "Утсан дээрээ банкны аппаа шууд нээх холбоос, компьютер дээр QR код гарч ирнэ. Төлсний дараа энэ хуудас өөрөө шинэчлэгдэнэ."
+                              : "Хэсэг хугацааны дараа хуудсаа сэргээнэ үү."}
                       </small>
                     </div>
                   </div>
-                  {payment.shortUrl && (
+                  {qrSource && payment.shortUrl && (
                     <a
                       className="qpay-short-link"
                       href={payment.shortUrl}
