@@ -2432,7 +2432,13 @@ export function GreetingExperience({ slug }: { slug: string }) {
         {screen === "cover" && (
           <div className="cover-scene">
             <div className="cover-photo">
-              <img src={greeting.photos[0]} alt={greeting.recipientName} />
+              <img
+                src={greeting.photos[0]}
+                alt={greeting.recipientName}
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+              />
               <Camera size={21} />
             </div>
             <div className="cover-copy">
@@ -2494,7 +2500,13 @@ export function GreetingExperience({ slug }: { slug: string }) {
             </header>
             <div className="memory-grid">
               {greeting.photos.map((photo, index) => (
-                <img src={photo} alt={`Дурсамж ${index + 1}`} key={photo} />
+                <img
+                  src={photo}
+                  alt={`Дурсамж ${index + 1}`}
+                  loading={index < 4 ? "eager" : "lazy"}
+                  decoding="async"
+                  key={`${photo}-${index}`}
+                />
               ))}
             </div>
             <button

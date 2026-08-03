@@ -153,3 +153,19 @@ test("offers a 9:16 social story sharing flow", async () => {
   assert.match(shareSource, /Story-д оруулах/);
   assert.match(paymentSource, /StoryShareButton/);
 });
+
+test("keeps many-photo recipient greetings responsive", async () => {
+  const recipientSource = await readFile(
+    new URL("../app/BirthdayApp.tsx", import.meta.url),
+    "utf8",
+  );
+  const templateStyles = await readFile(
+    new URL("../app/template-worlds.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(recipientSource, /fetchPriority="high"/);
+  assert.match(recipientSource, /loading=\{index < 4 \? "eager" : "lazy"\}/);
+  assert.match(templateStyles, /\.recipient-experience \.screen-cover/);
+  assert.match(templateStyles, /min-height: calc\(100svh - 94px\)/);
+});

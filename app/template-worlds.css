@@ -632,4 +632,60 @@
   .recipient-experience.template-minimal .cover-photo {
     box-shadow: 8px 8px 0 #ff3d20;
   }
+
+  /* Keep the recipient cover inside short mobile viewports. */
+  .recipient-experience .screen-cover {
+    min-height: 100dvh;
+    min-height: 100svh;
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+  }
+
+  .recipient-experience .cover-scene {
+    min-width: 0;
+    min-height: calc(100dvh - 94px);
+    min-height: calc(100svh - 94px);
+    height: auto;
+    gap: clamp(10px, 2.2dvh, 18px);
+    gap: clamp(10px, 2.2svh, 18px);
+  }
+
+  .recipient-experience .cover-photo,
+  .recipient-experience.template-elegant .cover-photo,
+  .recipient-experience.template-dreamy .cover-photo,
+  .recipient-experience.template-boho .cover-photo {
+    min-width: 0;
+    height: clamp(260px, 44dvh, 350px);
+    height: clamp(260px, 44svh, 350px);
+    flex: 0 1 auto;
+  }
+
+  .recipient-experience .cover-copy {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .recipient-experience .cover-copy h1 {
+    max-width: min(100%, 390px);
+    overflow-wrap: anywhere;
+  }
+
+  .recipient-experience .cover-photo img {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 700px) {
+  .recipient-experience .cover-photo,
+  .recipient-experience.template-elegant .cover-photo,
+  .recipient-experience.template-dreamy .cover-photo,
+  .recipient-experience.template-boho .cover-photo {
+    height: clamp(225px, 39dvh, 285px);
+    height: clamp(225px, 39svh, 285px);
+  }
+
+  .recipient-experience .cover-scene > .mascot {
+    width: 105px;
+    height: 130px;
+    opacity: 0.88;
+  }
 }
