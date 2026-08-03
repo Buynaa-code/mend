@@ -110,12 +110,16 @@ function detectInAppBrowser() {
     : /Messenger|Orca-Android|FBIOS|FBAN|FBAV|FB_IAB/i.test(userAgent)
       ? "Messenger"
       : "Facebook";
+  const isIos = /iPhone|iPad|iPod/i.test(userAgent);
   const { host, pathname, search } = window.location;
   const target = `${host}${pathname}${search}`;
-  const externalUrl = /iPhone|iPad|iPod/i.test(userAgent)
+  // Android honours an intent:// hand-off reliably. iOS has no equivalent that
+  // Meta has not closed off, so x-safari-https:// is worth attempting but the
+  // ••• menu stays the instruction we actually tell people to follow.
+  const externalUrl = isIos
     ? `x-safari-https://${target}`
     : `intent://${target}#Intent;scheme=https;action=android.intent.action.VIEW;end`;
-  return { appName, externalUrl };
+  return { appName, externalUrl, isIos };
 }
 
 function paymentCredential(paymentId: string): Record<string, string> {
@@ -148,6 +152,7 @@ export function PaymentApp() {
   const [inAppBrowser, setInAppBrowser] = useState<{
     appName: string;
     externalUrl: string;
+    isIos: boolean;
   } | null>(null);
   const [payLinkCopied, setPayLinkCopied] = useState(false);
   const [orderIdCopied, setOrderIdCopied] = useState(false);
@@ -297,6 +302,14 @@ export function PaymentApp() {
     }
   }
 
+  // Inside a Meta in-app browser a bank deeplink resolves to nothing at all, so
+  // send the buyer to the real browser instead of letting the tap die silently.
+  function handleBankClick(event: React.MouseEvent<HTMLAnchorElement>) {
+    if (!inAppBrowser) return;
+    event.preventDefault();
+    window.location.href = inAppBrowser.externalUrl;
+  }
+
   async function copyOrderId() {
     if (!payment) return;
     try {
@@ -442,17 +455,34 @@ export function PaymentApp() {
                 <>
                   {inAppBrowser && hasBankLinks && (
                     <div className="inapp-notice">
+                      <strong>
+                        Банкны апп {inAppBrowser.appName} доторх browser-ээс
+                        нээгдэхгүй
+                      </strong>
                       <p>
-                        Та {inAppBrowser.appName} доторх browser ашиглаж байна —
-                        банкны апп эндээс нээгдэхгүй байж болзошгүй. Гадны
-                        browser-ээр нээж төлөхийг зөвлөж байна.
+                        {inAppBrowser.appName} нь банкны аппыг нээх зөвшөөрөл
+                        өгдөггүй. Төлбөрөө хийхийн тулд энэ хуудсыг утасныхаа
+                        {inAppBrowser.isIos ? " Safari" : " Chrome"}-д нээнэ үү.
                       </p>
+                      {inAppBrowser.isIos && (
+                        <ol className="inapp-notice-steps">
+                          <li>
+                            <span>1</span> Баруун дээд буланд байрлах ••• товчийг
+                            дарна
+                          </li>
+                          <li>
+                            <span>2</span> “Open in Safari” / “Open in browser”-ыг
+                            сонгоно
+                          </li>
+                        </ol>
+                      )}
                       <div>
                         <a
                           className="inapp-notice-open"
                           href={inAppBrowser.externalUrl}
                         >
-                          <ExternalLink size={16} /> Browser-ээр нээх
+                          <ExternalLink size={16} />
+                          {inAppBrowser.isIos ? "Safari-гаар нээх" : "Chrome-оор нээх"}
                         </a>
                         <button type="button" onClick={copyPayLink}>
                           {payLinkCopied ? <Check size={16} /> : <Copy size={16} />}
@@ -504,7 +534,11 @@ export function PaymentApp() {
                     <div className="bank-links">
                       <span>эсвэл банкны аппаа шууд нээх:</span>
                       {primaryBank && (
-                        <a className="bank-links-primary" href={primaryBank.link}>
+                        <a
+                          className="bank-links-primary"
+                          href={primaryBank.link}
+                          onClick={handleBankClick}
+                        >
                           {primaryBank.logo ? (
                             <img src={primaryBank.logo} alt="" />
                           ) : (
@@ -515,7 +549,11 @@ export function PaymentApp() {
                       )}
                       <div>
                         {visibleBanks.map((bank) => (
-                          <a href={bank.link} key={`${bank.name}-${bank.link}`}>
+                          <a
+                            href={bank.link}
+                            key={`${bank.name}-${bank.link}`}
+                            onClick={handleBankClick}
+                          >
                             {bank.logo ? <img src={bank.logo} alt="" /> : <QrCode size={19} />}
                             <span>{bank.description || bank.name}</span>
                           </a>

@@ -1579,11 +1579,52 @@ img {
   background: #f2f8f3;
 }
 
+.inapp-notice strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #23412e;
+  font-size: 12px;
+  font-weight: 1000;
+  line-height: 1.4;
+}
+
 .inapp-notice p {
   margin: 0 0 10px;
   color: #3f5545;
   font-size: 10px;
   line-height: 1.55;
+}
+
+.inapp-notice-steps {
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+
+.inapp-notice-steps li {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  color: #3f5545;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.inapp-notice-steps span {
+  width: 17px;
+  height: 17px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  background: #2f9e5e;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 1000;
 }
 
 .inapp-notice > div {
