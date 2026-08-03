@@ -1874,51 +1874,89 @@ function BirthdayCakeExperience({
       await context.resume();
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          autoGainControl: false,
-          echoCancellation: true,
+          autoGainControl: true,
+          echoCancellation: false,
           noiseSuppression: false,
         },
       });
       streamRef.current = stream;
       const source = context.createMediaStreamSource(stream);
       const analyser = context.createAnalyser();
-      analyser.fftSize = 1024;
-      analyser.smoothingTimeConstant = 0.42;
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.28;
       source.connect(analyser);
+      if (context.state !== "running") {
+        await context.resume();
+      }
 
       setStatus("listening");
 
       const samples = new Uint8Array(analyser.fftSize);
+      const frequencies = new Uint8Array(analyser.frequencyBinCount);
       const startedAt = performance.now();
-      let baseline = 0.018;
-      let loudFrames = 0;
+      let baselineRms = 0.008;
+      let baselineNoise = 0.018;
+      let blowingSince = 0;
       let lastMeterUpdate = 0;
 
       const measure = (now: number) => {
         analyser.getByteTimeDomainData(samples);
         let sum = 0;
+        let peak = 0;
         for (const sample of samples) {
           const normalized = (sample - 128) / 128;
           sum += normalized * normalized;
+          peak = Math.max(peak, Math.abs(normalized));
         }
         const rms = Math.sqrt(sum / samples.length);
 
-        if (now - startedAt < 650) {
-          baseline = baseline * 0.9 + rms * 0.1;
+        analyser.getByteFrequencyData(frequencies);
+        const binHz = context.sampleRate / analyser.fftSize;
+        const firstNoiseBin = Math.max(1, Math.floor(900 / binHz));
+        const lastNoiseBin = Math.min(
+          frequencies.length,
+          Math.ceil(8000 / binHz),
+        );
+        let noiseSum = 0;
+        for (let index = firstNoiseBin; index < lastNoiseBin; index += 1) {
+          noiseSum += frequencies[index];
         }
-        const threshold = Math.max(0.055, Math.min(0.16, baseline * 2.8));
+        const noiseLevel =
+          noiseSum / Math.max(1, lastNoiseBin - firstNoiseBin) / 255;
+
+        if (now - startedAt < 360) {
+          baselineRms = Math.min(0.02, baselineRms * 0.88 + rms * 0.12);
+          baselineNoise = Math.min(
+            0.065,
+            baselineNoise * 0.88 + noiseLevel * 0.12,
+          );
+        }
+
+        const rmsThreshold = Math.max(
+          0.012,
+          Math.min(0.055, baselineRms * 1.55 + 0.004),
+        );
+        const noiseThreshold = Math.max(
+          0.03,
+          Math.min(0.16, baselineNoise * 1.45 + 0.01),
+        );
+        const intensity = Math.max(
+          rms / rmsThreshold,
+          noiseLevel / noiseThreshold,
+          peak / 0.12,
+        );
         if (now - lastMeterUpdate > 48) {
-          setBlowLevel(Math.min(1, rms / threshold));
+          setBlowLevel(Math.min(1, intensity));
           lastMeterUpdate = now;
         }
 
-        if (now - startedAt > 650 && rms > threshold) {
-          loudFrames += 1;
-        } else {
-          loudFrames = Math.max(0, loudFrames - 2);
+        if (now - startedAt > 360 && intensity >= 1) {
+          blowingSince ||= now;
+        } else if (intensity < 0.72) {
+          blowingSince = 0;
         }
 
-        if (loudFrames >= 8) {
+        if (blowingSince && now - blowingSince >= 180) {
           blowOutCandles();
           return;
         }
@@ -1934,7 +1972,10 @@ function BirthdayCakeExperience({
   const isBlown = status === "blown";
 
   return (
-    <div className={`cake-scene ${isBlown ? "is-blown" : ""}`}>
+    <div
+      className={`cake-scene ${isBlown ? "is-blown" : ""} ${status === "listening" ? "is-listening" : ""}`}
+      style={{ "--blow-level": blowLevel } as CSSProperties}
+    >
       <small>{isBlown ? "Хүсэл чинь биелэх болтугай" : "Нэг хүсэл бодоорой"}</small>
       <h1>
         {isBlown
@@ -1992,7 +2033,7 @@ function BirthdayCakeExperience({
         )}
         {status === "listening" && (
           <>
-            <p className="cake-listening-copy"><Wind size={19} /> Одоо үлээгээрэй...</p>
+            <p className="cake-listening-copy"><Wind size={19} /> Микрофон ажиллаж байна · одоо үлээгээрэй</p>
             <div className="blow-meter" aria-label="Үлээлтийн хүч">
               <span style={{ width: `${Math.max(5, blowLevel * 100)}%` }} />
             </div>

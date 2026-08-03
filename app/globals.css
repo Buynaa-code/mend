@@ -7508,6 +7508,11 @@ img {
   animation-delay: -430ms;
 }
 
+.cake-scene.is-listening .candle-flame {
+  animation-duration: 360ms;
+  box-shadow: inset 0 -8px 0 #ffd84c, 0 0 22px 7px rgba(255, 153, 45, 0.72);
+}
+
 .candle-smoke {
   top: -25px;
   width: 7px;
