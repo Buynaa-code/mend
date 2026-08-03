@@ -5,7 +5,12 @@ import { sites } from "./build/sites-vite-plugin";
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
+// Cloudflare Workers Builds sets CI=true; local dev leaves it unset.
+const isCloudflareBuild =
+  process.env.CI === "true" || process.env.CF_PAGES === "1";
+
 const localBindingConfig = {
+  name: "mend",
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
   vars: {
@@ -27,8 +32,14 @@ const localBindingConfig = {
     QPAY_LINE_TAX_CODE: process.env.QPAY_LINE_TAX_CODE ?? "",
     QPAY_DISTRICT_CODE: process.env.QPAY_DISTRICT_CODE ?? "",
     QPAY_TAX_TYPE: process.env.QPAY_TAX_TYPE ?? "",
-    QPAY_INVOICE_OPTIONS_JSON:
-      process.env.QPAY_INVOICE_OPTIONS_JSON ?? "",
+    QPAY_INVOICE_OPTIONS_JSON: process.env.QPAY_INVOICE_OPTIONS_JSON ?? "",
+    YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY ?? "",
+    WIRE_API_BASE: process.env.WIRE_API_BASE ?? "https://api.wire.mn",
+    WIRE_API_KEY: process.env.WIRE_API_KEY ?? "",
+    WIRE_WEBHOOK_SECRET: process.env.WIRE_WEBHOOK_SECRET ?? "",
+    WIRE_SETUP_TOKEN: process.env.WIRE_SETUP_TOKEN ?? "",
+    PAYMENT_DESCRIPTION:
+      process.env.PAYMENT_DESCRIPTION ?? "mend birthday greeting",
   },
   d1_databases: [
     {
@@ -39,6 +50,26 @@ const localBindingConfig = {
   ],
   r2_buckets: [{ binding: "MEDIA", bucket_name: "mend-media-local" }],
 };
+
+const productionBindingConfig = {
+  ...localBindingConfig,
+  vars: {
+    ...localBindingConfig.vars,
+    PAYMENT_PROVIDER_MODE: process.env.PAYMENT_PROVIDER_MODE ?? "wire",
+  },
+  d1_databases: [
+    {
+      binding: "DB",
+      database_name: "mend-prod",
+      database_id: "d1a4d2ac-715b-4453-8165-04b538d406c0",
+    },
+  ],
+  r2_buckets: [{ binding: "MEDIA", bucket_name: "mend-media" }],
+};
+
+const bindingConfig = isCloudflareBuild
+  ? productionBindingConfig
+  : localBindingConfig;
 
 export default defineConfig(async () => {
   // Keep Wrangler and Miniflare state project-local. These are non-secret tool
@@ -59,7 +90,7 @@ export default defineConfig(async () => {
       sites(),
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
-        config: localBindingConfig,
+        config: bindingConfig,
       }),
     ],
   };
