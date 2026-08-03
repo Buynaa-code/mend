@@ -4749,7 +4749,7 @@ img {
   height: 74vw;
   border: 1px solid var(--card-accent);
   border-radius: 50%;
-  opacity: 0.2;
+  opacity: 0.12;
 }
 
 .recipient-shape {
@@ -4765,7 +4765,7 @@ img {
   min-height: 70px;
   border: 2px solid currentColor;
   border-radius: 50%;
-  opacity: 0.2;
+  opacity: 0.12;
   animation: recipientFloat 7s ease-in-out infinite;
 }
 
@@ -4778,7 +4778,7 @@ img {
   min-height: 58px;
   border-radius: 18px;
   background: currentColor;
-  opacity: 0.16;
+  opacity: 0.09;
   transform: rotate(22deg);
 }
 
@@ -4790,7 +4790,7 @@ img {
   border-radius: 999px;
   background: currentColor;
   box-shadow: 0 16px 0 currentColor, 0 32px 0 currentColor;
-  opacity: 0.18;
+  opacity: 0.1;
   transform: rotate(-12deg);
 }
 
@@ -4935,7 +4935,7 @@ img {
   border: 0;
   background: #8be1d1;
   border-radius: 48% 52% 67% 33% / 47% 36% 64% 53%;
-  opacity: 0.65;
+  opacity: 0.22;
 }
 
 /* Midnight Rose recipient world. */
@@ -4997,7 +4997,7 @@ img {
 .recipient-experience.template-elegant .recipient-orbit {
   border-color: #d5aa68;
   box-shadow: 0 0 60px rgba(213, 170, 104, 0.15);
-  opacity: 0.38;
+  opacity: 0.18;
 }
 
 /* Electric Party recipient world. */
@@ -5049,7 +5049,7 @@ img {
 
 .recipient-experience.template-party .recipient-shape.shape-b {
   background: #f7ff72;
-  opacity: 0.82;
+  opacity: 0.24;
 }
 
 /* Memory Zine recipient world. */
@@ -5150,7 +5150,7 @@ img {
 .recipient-experience.template-dreamy .recipient-orbit {
   border-color: #b8ffea;
   box-shadow: 0 0 70px rgba(184, 255, 234, 0.16);
-  opacity: 0.42;
+  opacity: 0.2;
 }
 
 /* Groovy 70s recipient world. */
@@ -5194,7 +5194,7 @@ img {
 .recipient-experience.template-retro .recipient-shape.shape-a {
   border-width: 16px;
   border-color: #e84b2c;
-  opacity: 0.55;
+  opacity: 0.2;
 }
 
 /* Modern Muse recipient world. */
@@ -5262,7 +5262,7 @@ img {
   border: 0;
   border-radius: 0;
   background: #ff3d20;
-  opacity: 1;
+  opacity: 0.16;
 }
 
 /* Desert Bloom recipient world. */
@@ -5309,7 +5309,7 @@ img {
   border: 0;
   background: #7e8c61;
   border-radius: 67% 33% 58% 42% / 41% 59% 41% 59%;
-  opacity: 0.7;
+  opacity: 0.2;
 }
 
 /* Creator workspace follows the selected collection instead of a generic skin. */
