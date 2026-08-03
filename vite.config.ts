@@ -5,14 +5,14 @@ import { sites } from "./build/sites-vite-plugin";
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
-// Cloudflare Workers Builds sets CI=true; local dev leaves it unset.
-const isCloudflareBuild =
-  process.env.CI === "true" || process.env.CF_PAGES === "1";
-
-const localBindingConfig = {
+const workerConfig = {
   name: "mend",
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
+};
+
+const localBindingConfig = {
+  ...workerConfig,
   vars: {
     APP_SECRET: process.env.APP_SECRET ?? "",
     ADMIN_API_SECRET: process.env.ADMIN_API_SECRET ?? "",
@@ -51,27 +51,7 @@ const localBindingConfig = {
   r2_buckets: [{ binding: "MEDIA", bucket_name: "mend-media-local" }],
 };
 
-const productionBindingConfig = {
-  ...localBindingConfig,
-  vars: {
-    ...localBindingConfig.vars,
-    PAYMENT_PROVIDER_MODE: process.env.PAYMENT_PROVIDER_MODE ?? "wire",
-  },
-  d1_databases: [
-    {
-      binding: "DB",
-      database_name: "mend-prod",
-      database_id: "d1a4d2ac-715b-4453-8165-04b538d406c0",
-    },
-  ],
-  r2_buckets: [{ binding: "MEDIA", bucket_name: "mend-media" }],
-};
-
-const bindingConfig = isCloudflareBuild
-  ? productionBindingConfig
-  : localBindingConfig;
-
-export default defineConfig(async () => {
+export default defineConfig(async ({ command }) => {
   // Keep Wrangler and Miniflare state project-local. These are non-secret tool
   // settings; application environment belongs in ignored `.env*` files.
   process.env.WRANGLER_WRITE_LOGS ??= "false";
@@ -90,7 +70,10 @@ export default defineConfig(async () => {
       sites(),
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
-        config: bindingConfig,
+        // Local development reads ignored .env files. Production builds keep
+        // secrets and resource identifiers out of the artifact; Sites applies
+        // runtime values plus the logical D1/R2 bindings from hosting.json.
+        config: command === "build" ? workerConfig : localBindingConfig,
       }),
     ],
   };
