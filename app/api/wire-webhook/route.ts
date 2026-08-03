@@ -1,1 +1,1 @@
-export { POST } from "../webhooks/wire/route";
+export { GET, HEAD, POST } from "../webhooks/wire/route";

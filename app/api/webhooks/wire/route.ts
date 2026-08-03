@@ -25,6 +25,14 @@ type WireEventEnvelope = {
   };
 };
 
+export function GET() {
+  return Response.json({ ok: true, service: "wire-webhook" });
+}
+
+export function HEAD() {
+  return new Response(null, { status: 204 });
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text();
   const signature = request.headers.get("wirepayment-signature");
