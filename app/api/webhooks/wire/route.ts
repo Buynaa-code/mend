@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   const eventType = (event.type || "").toLowerCase();
   const intent = event.data?.object;
   if (!eventId || !eventType) {
-    return jsonError("wire.mn event ID эсвэл төрөл дутуу байна.", 400);
+    return Response.json({ ok: true, verification: true });
   }
 
   const paymentEventTypes = new Set([
