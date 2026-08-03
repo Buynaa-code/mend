@@ -61,9 +61,11 @@ export async function POST(request: Request) {
       : [];
 
     const bindings = bindingsForMode;
+    // Wire cancels unpaid intents after its own TTL (10 minutes by default),
+    // so keep ours aligned or the page waits on an intent Wire already dropped.
     const ttlMinutes = Math.max(
       5,
-      Math.min(120, Number(bindings.PAYMENT_TTL_MINUTES ?? "15") || 15),
+      Math.min(120, Number(bindings.PAYMENT_TTL_MINUTES ?? "10") || 10),
     );
     const now = new Date().toISOString();
     const expiresAt = paymentExpiry(Date.now(), ttlMinutes);

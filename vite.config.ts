@@ -22,7 +22,7 @@ const productionBindingConfig = {
   vars: {
     PUBLIC_APP_URL: process.env.PUBLIC_APP_URL ?? "",
     PAYMENT_PROVIDER_MODE: process.env.PAYMENT_PROVIDER_MODE ?? "wire",
-    PAYMENT_TTL_MINUTES: process.env.PAYMENT_TTL_MINUTES ?? "15",
+    PAYMENT_TTL_MINUTES: process.env.PAYMENT_TTL_MINUTES ?? "10",
     ACCESS_CODE_TTL_DAYS: process.env.ACCESS_CODE_TTL_DAYS ?? "30",
     QPAY_BASE_URL:
       process.env.QPAY_BASE_URL ?? "https://merchant-sandbox.qpay.mn",
@@ -55,7 +55,7 @@ const localBindingConfig = {
     PUBLIC_APP_URL: process.env.PUBLIC_APP_URL ?? "",
     PAYMENT_PROVIDER_MODE: process.env.PAYMENT_PROVIDER_MODE ?? "qpay",
     PAYMENT_DEMO_SECRET: process.env.PAYMENT_DEMO_SECRET ?? "",
-    PAYMENT_TTL_MINUTES: process.env.PAYMENT_TTL_MINUTES ?? "15",
+    PAYMENT_TTL_MINUTES: process.env.PAYMENT_TTL_MINUTES ?? "10",
     ACCESS_CODE_TTL_DAYS: process.env.ACCESS_CODE_TTL_DAYS ?? "30",
     QPAY_BASE_URL:
       process.env.QPAY_BASE_URL ?? "https://merchant-sandbox.qpay.mn",
