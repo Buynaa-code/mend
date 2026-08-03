@@ -7,7 +7,7 @@ import {
   signValue,
 } from "./security";
 
-export const GREETING_PRICE = 6_900;
+export const GREETING_PRICE = 5_500;
 export const PAYMENT_CURRENCY = "MNT";
 
 export type PaymentStatus =

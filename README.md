@@ -6,7 +6,7 @@
 ## Үндсэн урсгал
 
 - `/create` — template, нэр, зураг, дуу, мессеж, mobile preview
-- `/pay` — 6,900₮ QPay QR, банкны deeplink, төлбөрийн төлөв
+- `/pay` — 5,500₮ QPay QR, банкны deeplink, төлбөрийн төлөв
 - `/g/:slug` — хүлээн авагчийн public мэндчилгээ
 - `/dashboard` — нээлт, reaction, guestbook
 

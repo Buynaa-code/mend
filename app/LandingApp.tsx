@@ -134,8 +134,8 @@ const sceneMeta = [
 
 const faqs = [
   {
-    q: "Яагаад 6,900₮ гэсэн ганц үнэтэй вэ?",
-    a: "Нэг төлбөр = нэг мэндчилгээний линк. Сар бүрийн эсвэл нуугдсан төлбөр байхгүй. Загварлах, preview хийх нь бүрэн үнэгүй — зөвхөн нийтлэхэд л төлнө.",
+    q: "Яагаад 5,500₮ гэсэн ганц үнэтэй вэ?",
+    a: "Энгийн үнэ нь 8,500₮ ч эхний 50 хэрэглэгчид нээлтийн урамшуулалаар 5,500₮-өөр авах боломжтой. Нэг төлбөр = нэг мэндчилгээний линк. Сар бүрийн эсвэл нуугдсан төлбөр байхгүй. Загварлах, preview хийх нь бүрэн үнэгүй — зөвхөн нийтлэхэд л төлнө.",
   },
   {
     q: "Төлбөр найдвартай юу?",
@@ -163,7 +163,9 @@ const HERO_PHOTO =
   "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=900&q=80";
 const LETTER_TEXT =
   "Одоо ч мартагдашгүй инээмсэглэлээ хайрлаж явдаг чамдаа шинэ настайн мэнд хүргэе. Хамгийн онцгой мөчүүд чинь бидний хамгийн үнэ цэнэтэй эрдэнэс байлаа. Энэ жил чамд аз жаргал дүүрэн байх болтугай.";
-const PRICE = "6,900₮";
+const PRICE = "5,500₮";
+const ORIGINAL_PRICE = "8,500₮";
+const PROMO_NOTE = "Эхний 50 хэрэглэгчид · нээлтийн урамшуулал";
 const CAVEAT_STACK = "var(--font-caveat), 'Caveat', cursive";
 
 function pad(n: number) {
@@ -2138,20 +2140,33 @@ function PriceSection() {
           <div>
             <Chip
               style={{
-                background: "#efe9fa",
+                background: "linear-gradient(135deg,#ffe4a3,#ffc978)",
                 border: "none",
+                color: "#5a3d0f",
               }}
             >
-              Ганц үнэ · нуугдсан төлбөргүй
+              🎉 {PROMO_NOTE}
             </Chip>
             <div
               style={{
                 margin: "18px 0 4px",
                 display: "flex",
                 alignItems: "baseline",
-                gap: 10,
+                gap: 12,
+                flexWrap: "wrap",
               }}
             >
+              <span
+                style={{
+                  fontSize: "clamp(20px,3vw,26px)",
+                  fontWeight: 700,
+                  color: "#a89fb8",
+                  textDecoration: "line-through",
+                  textDecorationThickness: 2,
+                }}
+              >
+                {ORIGINAL_PRICE}
+              </span>
               <strong
                 style={{
                   fontSize: "clamp(48px,8vw,66px)",

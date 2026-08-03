@@ -291,7 +291,9 @@ export function CardPreview({
             <small>Чамд зориулсан</small>
             <h2>
               {draft.headline ||
-                `Төрсөн өдрийн мэнд, ${draft.recipientName || "чамдаа"}!`}
+                (draft.recipientName
+                  ? `Төрсөн өдрийн мэнд, ${draft.recipientName}!`
+                  : "Төрсөн өдрийн мэнд!")}
             </h2>
             <p>
               {draft.senderName
@@ -1608,6 +1610,24 @@ export function CreateGreetingApp() {
                       </div>
                     </header>
 
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "8px 12px",
+                        borderRadius: 10,
+                        background:
+                          "linear-gradient(135deg,#ffe4a3,#ffc978)",
+                        color: "#5a3d0f",
+                        fontSize: 12,
+                        fontWeight: 800,
+                        marginBottom: 4,
+                      }}
+                    >
+                      🎉 Эхний 50 хэрэглэгчид · нээлтийн урамшуулал
+                    </div>
+
                     <div className="publish-invoice-line">
                       <div>
                         <strong>Нэг удаагийн мэндчилгээний линк</strong>
@@ -1620,12 +1640,43 @@ export function CreateGreetingApp() {
                             : ""}
                         </small>
                       </div>
-                      <span>6,900₮</span>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "baseline",
+                          gap: 6,
+                        }}
+                      >
+                        <span
+                          style={{
+                            color: "#a89fb8",
+                            textDecoration: "line-through",
+                            fontWeight: 600,
+                            fontSize: "0.85em",
+                          }}
+                        >
+                          8,500₮
+                        </span>
+                        5,500₮
+                      </span>
                     </div>
 
                     <div className="publish-invoice-total">
                       <span>Нийт төлөх</span>
-                      <strong>6,900₮ MNT</strong>
+                      <strong>
+                        <span
+                          style={{
+                            color: "#a89fb8",
+                            textDecoration: "line-through",
+                            fontWeight: 600,
+                            fontSize: "0.75em",
+                            marginRight: 8,
+                          }}
+                        >
+                          8,500₮
+                        </span>
+                        5,500₮ MNT
+                      </strong>
                     </div>
 
                     <div className="publish-invoice-banks">
@@ -1665,7 +1716,7 @@ export function CreateGreetingApp() {
                       ) : (
                         <>
                           <QrCode size={17} />
-                          6,900₮ төлөх
+                          5,500₮ төлөх
                         </>
                       )}
                     </button>
