@@ -11,6 +11,42 @@ const workerConfig = {
   compatibility_flags: ["nodejs_compat"],
 };
 
+// Cloudflare Workers Builds sets CI=true. Detect that so `command === "build"`
+// still receives the real D1/R2 bindings and public vars, while secrets stay
+// out of the artifact (set them via `wrangler secret put`).
+const isCloudflareBuild =
+  process.env.CI === "true" || process.env.CF_PAGES === "1";
+
+const productionBindingConfig = {
+  ...workerConfig,
+  vars: {
+    PUBLIC_APP_URL: process.env.PUBLIC_APP_URL ?? "",
+    PAYMENT_PROVIDER_MODE: process.env.PAYMENT_PROVIDER_MODE ?? "wire",
+    PAYMENT_TTL_MINUTES: process.env.PAYMENT_TTL_MINUTES ?? "15",
+    ACCESS_CODE_TTL_DAYS: process.env.ACCESS_CODE_TTL_DAYS ?? "30",
+    QPAY_BASE_URL:
+      process.env.QPAY_BASE_URL ?? "https://merchant-sandbox.qpay.mn",
+    QPAY_BRANCH_CODE: process.env.QPAY_BRANCH_CODE ?? "ONLINE",
+    QPAY_STAFF_CODE: process.env.QPAY_STAFF_CODE ?? "WEB",
+    QPAY_TERMINAL_CODE: process.env.QPAY_TERMINAL_CODE ?? "MEND",
+    QPAY_LINE_TAX_CODE: process.env.QPAY_LINE_TAX_CODE ?? "",
+    QPAY_DISTRICT_CODE: process.env.QPAY_DISTRICT_CODE ?? "",
+    QPAY_TAX_TYPE: process.env.QPAY_TAX_TYPE ?? "",
+    QPAY_INVOICE_OPTIONS_JSON: process.env.QPAY_INVOICE_OPTIONS_JSON ?? "",
+    WIRE_API_BASE: process.env.WIRE_API_BASE ?? "https://api.wire.mn",
+    PAYMENT_DESCRIPTION:
+      process.env.PAYMENT_DESCRIPTION ?? "mend birthday greeting",
+  },
+  d1_databases: [
+    {
+      binding: "DB",
+      database_name: "mend-prod",
+      database_id: "d1a4d2ac-715b-4453-8165-04b538d406c0",
+    },
+  ],
+  r2_buckets: [{ binding: "MEDIA", bucket_name: "mend-media" }],
+};
+
 const localBindingConfig = {
   ...workerConfig,
   vars: {
@@ -71,9 +107,15 @@ export default defineConfig(async ({ command }) => {
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         // Local development reads ignored .env files. Production builds keep
-        // secrets and resource identifiers out of the artifact; Sites applies
-        // runtime values plus the logical D1/R2 bindings from hosting.json.
-        config: command === "build" ? workerConfig : localBindingConfig,
+        // secrets out of the artifact: Cloudflare Workers Builds gets D1/R2
+        // bindings and public vars via productionBindingConfig, while Sites
+        // builds get workerConfig only and receive bindings via hosting.json.
+        config:
+          command === "build"
+            ? isCloudflareBuild
+              ? productionBindingConfig
+              : workerConfig
+            : localBindingConfig,
       }),
     ],
   };
