@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Copy,
   Eye,
+  ExternalLink,
   Gift,
   Heart,
   ImagePlus,
@@ -2056,6 +2057,90 @@ function BirthdayCakeExperience({
   );
 }
 
+type InAppBrowserPlatform = "android" | "ios" | "other";
+
+function createAndroidBrowserIntent(urlString: string) {
+  try {
+    const url = new URL(urlString);
+    const scheme = url.protocol.replace(":", "");
+    const target = `${url.host}${url.pathname}${url.search}${url.hash}`;
+    return `intent://${target}#Intent;scheme=${scheme};package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url.toString())};end`;
+  } catch {
+    return urlString;
+  }
+}
+
+function ExternalBrowserGate({
+  platform,
+  url,
+  appName,
+  onContinue,
+}: {
+  platform: InAppBrowserPlatform;
+  url: string;
+  appName: string;
+  onContinue: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const androidIntent = createAndroidBrowserIntent(url);
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2200);
+    } catch {
+      window.prompt("Энэ линкийг хуулна уу", url);
+    }
+  }
+
+  return (
+    <main className="browser-handoff">
+      <div className="browser-handoff-glow" aria-hidden="true" />
+      <section className="browser-handoff-card">
+        <span className="browser-handoff-brand">mend.</span>
+        <div className="browser-handoff-icon" aria-hidden="true">
+          <ExternalLink size={31} />
+        </div>
+        <small>{appName} browser танигдлаа</small>
+        <h1>Утасныхаа browser-оор нээгээрэй</h1>
+        <p>
+          Лаагаа үлээхэд микрофон хэрэгтэй. {appName}-ийн доторх browser
+          микрофоныг бүрэн дэмжихгүй байж болох тул Chrome эсвэл Safari-д
+          нээгээд үргэлжлүүлээрэй.
+        </p>
+
+        {platform === "android" ? (
+          <div className="browser-handoff-actions">
+            <a className="primary-button" href={androidIntent}>
+              <ExternalLink size={18} /> Chrome-оор нээх
+            </a>
+            <button type="button" className="secondary-button" onClick={copyLink}>
+              {copied ? <Check size={18} /> : <Copy size={18} />}
+              {copied ? "Линк хуулагдлаа" : "Линк хуулах"}
+            </button>
+          </div>
+        ) : (
+          <>
+            <ol className="browser-handoff-steps">
+              <li><span>1</span><strong>Баруун дээд булангийн ••• цэсийг дарна</strong></li>
+              <li><span>2</span><strong>“Open in Safari” эсвэл “Open in browser” сонгоно</strong></li>
+            </ol>
+            <button type="button" className="primary-button" onClick={copyLink}>
+              {copied ? <Check size={18} /> : <Copy size={18} />}
+              {copied ? "Линк хуулагдлаа" : "Линк хуулах"}
+            </button>
+          </>
+        )}
+
+        <button type="button" className="browser-handoff-continue" onClick={onContinue}>
+          Энд үргэлжлүүлэх
+        </button>
+      </section>
+    </main>
+  );
+}
+
 export function GreetingExperience({ slug }: { slug: string }) {
   const [greeting, setGreeting] = useState<PublicGreeting | null>(null);
   const [loading, setLoading] = useState(true);
@@ -2068,6 +2153,12 @@ export function GreetingExperience({ slug }: { slug: string }) {
   const [guestMessage, setGuestMessage] = useState("");
   const [guestSent, setGuestSent] = useState(false);
   const [ytFailed, setYtFailed] = useState(false);
+  const [browserHandoff, setBrowserHandoff] = useState<{
+    platform: InAppBrowserPlatform;
+    url: string;
+    appName: string;
+  } | null>(null);
+  const [handoffDismissed, setHandoffDismissed] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const soundButtonRef = useRef<HTMLButtonElement>(null);
   const soundIconRef = useRef<HTMLSpanElement>(null);
@@ -2082,6 +2173,31 @@ export function GreetingExperience({ slug }: { slug: string }) {
     window.localStorage.setItem(key, value);
     return value;
   }, [slug]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const forcedPlatform = params.get("inapp");
+    const userAgent = navigator.userAgent || "";
+    const isMetaInApp =
+      /FBAN|FBAV|FB_IAB|Instagram|Messenger|Orca-Android/i.test(userAgent);
+    if (!isMetaInApp && !["android", "ios", "other"].includes(forcedPlatform || "")) {
+      return;
+    }
+    const platform: InAppBrowserPlatform =
+      forcedPlatform === "android" || /Android/i.test(userAgent)
+        ? "android"
+        : forcedPlatform === "ios" || /iPhone|iPad|iPod/i.test(userAgent)
+          ? "ios"
+          : "other";
+    const appName = /Instagram/i.test(userAgent)
+      ? "Instagram"
+      : /Messenger|Orca-Android/i.test(userAgent)
+        ? "Messenger"
+        : "Messenger / Instagram";
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("inapp");
+    setBrowserHandoff({ platform, url: cleanUrl.toString(), appName });
+  }, []);
 
   useEffect(() => {
     fetch(`/api/greetings?slug=${encodeURIComponent(slug)}`)
@@ -2173,6 +2289,15 @@ export function GreetingExperience({ slug }: { slug: string }) {
     });
     setGuestMessage("");
     setGuestSent(true);
+  }
+
+  if (browserHandoff && !handoffDismissed) {
+    return (
+      <ExternalBrowserGate
+        {...browserHandoff}
+        onContinue={() => setHandoffDismissed(true)}
+      />
+    );
   }
 
   if (loading) {

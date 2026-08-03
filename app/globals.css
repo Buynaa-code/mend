@@ -3534,6 +3534,197 @@ img {
   }
 }
 
+/* Messenger / Instagram external-browser handoff */
+.browser-handoff {
+  position: relative;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 26px;
+  background:
+    radial-gradient(circle at 18% 14%, rgba(255, 211, 82, 0.24), transparent 31%),
+    radial-gradient(circle at 86% 88%, rgba(255, 79, 139, 0.16), transparent 34%),
+    #f7f2fb;
+  color: var(--purple-dark);
+}
+
+.browser-handoff-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(780px, 120vw);
+  height: min(780px, 120vw);
+  border: 1px solid rgba(128, 105, 189, 0.12);
+  border-radius: 50%;
+  box-shadow: 0 0 0 80px rgba(128, 105, 189, 0.035),
+    0 0 0 160px rgba(128, 105, 189, 0.025);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.browser-handoff-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 510px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 34px 34px 27px;
+  border: 1px solid rgba(128, 105, 189, 0.16);
+  border-radius: 30px;
+  background: rgba(255, 254, 249, 0.92);
+  box-shadow: 0 28px 80px rgba(62, 42, 82, 0.16);
+  text-align: center;
+  backdrop-filter: blur(18px);
+}
+
+.browser-handoff-brand {
+  margin-bottom: 23px;
+  color: var(--purple-dark);
+  font-size: 20px;
+  font-weight: 1000;
+}
+
+.browser-handoff-icon {
+  width: 74px;
+  height: 74px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 17px;
+  border: 1px solid rgba(128, 105, 189, 0.2);
+  border-radius: 24px;
+  background: linear-gradient(145deg, #fff2a8, #ffd9e5);
+  color: var(--purple-dark);
+  box-shadow: 0 12px 30px rgba(128, 105, 189, 0.14);
+  transform: rotate(-3deg);
+}
+
+.browser-handoff-card > small {
+  color: var(--purple);
+  font-size: 10px;
+  font-weight: 1000;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.browser-handoff-card > h1 {
+  max-width: 410px;
+  margin: 7px 0 12px;
+  font-size: clamp(29px, 6vw, 43px);
+  line-height: 1;
+  letter-spacing: -0.055em;
+}
+
+.browser-handoff-card > p {
+  max-width: 420px;
+  margin: 0 0 22px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.55;
+}
+
+.browser-handoff-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 10px;
+}
+
+.browser-handoff-actions > a,
+.browser-handoff-actions > button,
+.browser-handoff-card > .primary-button {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 999px;
+}
+
+.browser-handoff-steps {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.browser-handoff-steps li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(128, 105, 189, 0.13);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.browser-handoff-steps li > span {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #eee8f7;
+  color: var(--purple-dark);
+  font-size: 11px;
+  font-weight: 1000;
+}
+
+.browser-handoff-steps li > strong {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.browser-handoff-continue {
+  margin-top: 17px;
+  padding: 5px 9px;
+  border: 0;
+  border-bottom: 1px dashed rgba(73, 60, 98, 0.42);
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+@media (max-width: 560px) {
+  .browser-handoff {
+    padding: 14px;
+  }
+
+  .browser-handoff-card {
+    padding: 27px 19px 22px;
+    border-radius: 24px;
+  }
+
+  .browser-handoff-brand {
+    margin-bottom: 16px;
+  }
+
+  .browser-handoff-icon {
+    width: 65px;
+    height: 65px;
+    margin-bottom: 14px;
+    border-radius: 20px;
+  }
+
+  .browser-handoff-card > h1 {
+    font-size: clamp(28px, 9.5vw, 39px);
+  }
+
+  .browser-handoff-card > p {
+    margin-bottom: 18px;
+    font-size: 11px;
+  }
+
+  .browser-handoff-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1120px) {
   .creator-layout {
     grid-template-columns: 190px minmax(0, 1fr);
