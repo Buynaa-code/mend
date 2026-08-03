@@ -7328,3 +7328,419 @@ img {
     width: auto;
   }
 }
+
+/* Interactive birthday cake reveal */
+.cake-scene {
+  width: min(100%, 760px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: cakeSceneIn 620ms cubic-bezier(0.2, 0.86, 0.24, 1) both;
+}
+
+.cake-scene > small {
+  margin: 0;
+  color: var(--card-accent);
+  font-size: 11px;
+  font-weight: 1000;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.cake-scene > h1 {
+  max-width: 680px;
+  margin: 6px 0 0;
+  color: var(--card-text);
+  font-size: clamp(29px, 5vw, 54px);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.birthday-cake {
+  position: relative;
+  width: 350px;
+  height: 300px;
+  flex: 0 0 300px;
+  margin: 2px auto 0;
+  filter: drop-shadow(0 24px 30px rgba(34, 20, 47, 0.17));
+}
+
+.cake-art,
+.cake-candles,
+.cake-layer,
+.cake-frosting,
+.cake-plate {
+  position: absolute;
+  display: block;
+}
+
+.cake-art {
+  inset: 0;
+  animation: cakeFloat 2.8s ease-in-out infinite;
+}
+
+.cake-plate {
+  right: 18px;
+  bottom: 10px;
+  left: 18px;
+  height: 30px;
+  border: 2px solid color-mix(in srgb, var(--card-accent) 25%, white);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--theme-panel-solid) 82%, white);
+  box-shadow: inset 0 -8px 0 color-mix(in srgb, var(--card-accent) 11%, transparent);
+}
+
+.cake-layer {
+  left: 50%;
+  overflow: hidden;
+  transform: translateX(-50%);
+}
+
+.cake-layer::before {
+  position: absolute;
+  inset: 17px 15px auto;
+  height: 5px;
+  border-radius: 999px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.82) 0 13px,
+    transparent 13px 25px
+  );
+  content: "";
+  opacity: 0.7;
+}
+
+.cake-layer-top {
+  bottom: 112px;
+  width: 224px;
+  height: 69px;
+  border-radius: 14px 14px 25px 25px;
+  background: color-mix(in srgb, var(--card-accent) 58%, #ffcad7);
+  box-shadow: inset 0 -14px 0 rgba(79, 29, 54, 0.1);
+}
+
+.cake-layer-bottom {
+  bottom: 30px;
+  width: 276px;
+  height: 94px;
+  border-radius: 17px 17px 33px 33px;
+  background: color-mix(in srgb, var(--card-accent) 76%, #ce6e86);
+  box-shadow: inset 0 -17px 0 rgba(71, 30, 51, 0.13);
+}
+
+.cake-frosting {
+  z-index: 3;
+  bottom: 166px;
+  left: 50%;
+  width: 224px;
+  height: 30px;
+  border-radius: 50% 50% 16px 16px;
+  background: #fff6dd;
+  box-shadow: inset 0 -6px 0 rgba(240, 170, 126, 0.15);
+  transform: translateX(-50%);
+}
+
+.cake-frosting > i {
+  position: absolute;
+  bottom: -18px;
+  width: 23px;
+  height: 30px;
+  border-radius: 0 0 14px 14px;
+  background: #fff6dd;
+}
+
+.cake-frosting > i:nth-child(1) { left: 19px; height: 24px; }
+.cake-frosting > i:nth-child(2) { left: 57px; height: 36px; }
+.cake-frosting > i:nth-child(3) { left: 102px; height: 27px; }
+.cake-frosting > i:nth-child(4) { right: 55px; height: 34px; }
+.cake-frosting > i:nth-child(5) { right: 18px; height: 22px; }
+
+.cake-candles {
+  z-index: 5;
+  right: 72px;
+  bottom: 190px;
+  left: 72px;
+  height: 72px;
+}
+
+.cake-candle {
+  position: absolute;
+  bottom: 0;
+  width: 13px;
+  height: 53px;
+  border: 2px solid rgba(76, 42, 73, 0.13);
+  border-radius: 8px 8px 3px 3px;
+  background: repeating-linear-gradient(
+    -45deg,
+    #fff 0 6px,
+    color-mix(in srgb, var(--card-accent) 76%, #ff7e9d) 6px 12px
+  );
+  box-shadow: 0 4px 9px rgba(57, 29, 55, 0.13);
+}
+
+.cake-candle.candle-1 { left: 5%; height: 42px; transform: rotate(-3deg); }
+.cake-candle.candle-2 { left: 27%; height: 57px; transform: rotate(2deg); }
+.cake-candle.candle-3 { left: 48%; height: 64px; transform: rotate(-1deg); }
+.cake-candle.candle-4 { left: 69%; height: 55px; transform: rotate(3deg); }
+.cake-candle.candle-5 { left: 91%; height: 43px; transform: rotate(-2deg); }
+
+.candle-flame,
+.candle-smoke {
+  position: absolute;
+  left: 50%;
+  display: block;
+  transform: translateX(-50%);
+}
+
+.candle-flame {
+  top: -27px;
+  width: 17px;
+  height: 25px;
+  border-radius: 52% 48% 48% 52% / 68% 68% 32% 32%;
+  background: #ff9a2f;
+  box-shadow: inset 0 -8px 0 #ffd84c, 0 0 16px 4px rgba(255, 153, 45, 0.58);
+  transform-origin: 50% 100%;
+  animation: candleFlicker 920ms ease-in-out infinite alternate;
+}
+
+.cake-candle:nth-child(even) .candle-flame {
+  animation-delay: -430ms;
+}
+
+.candle-smoke {
+  top: -25px;
+  width: 7px;
+  height: 22px;
+  border: 2px solid rgba(81, 69, 89, 0.42);
+  border-color: rgba(81, 69, 89, 0.42) transparent transparent;
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.cake-tap-target {
+  position: absolute;
+  z-index: 8;
+  inset: 20px 8px 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 38%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cake-tap-target:disabled {
+  opacity: 0;
+  cursor: default;
+}
+
+.cake-confetti {
+  position: absolute;
+  z-index: 12;
+  top: 48%;
+  left: 50%;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.cake-confetti > i {
+  --confetti-x: 0px;
+  --confetti-y: -120px;
+  --confetti-rotate: 180deg;
+  position: absolute;
+  width: 9px;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--card-accent);
+  opacity: 0;
+}
+
+.cake-confetti > i:nth-child(3n) { width: 13px; height: 13px; border-radius: 50%; background: #ffd84c; }
+.cake-confetti > i:nth-child(3n + 1) { background: #ff6f91; }
+.cake-confetti > i:nth-child(1) { --confetti-x: -155px; --confetti-y: -145px; --confetti-rotate: -250deg; }
+.cake-confetti > i:nth-child(2) { --confetti-x: -120px; --confetti-y: -205px; --confetti-rotate: 190deg; }
+.cake-confetti > i:nth-child(3) { --confetti-x: -78px; --confetti-y: -164px; --confetti-rotate: -160deg; }
+.cake-confetti > i:nth-child(4) { --confetti-x: -38px; --confetti-y: -225px; --confetti-rotate: 300deg; }
+.cake-confetti > i:nth-child(5) { --confetti-x: 8px; --confetti-y: -176px; --confetti-rotate: -230deg; }
+.cake-confetti > i:nth-child(6) { --confetti-x: 53px; --confetti-y: -218px; --confetti-rotate: 260deg; }
+.cake-confetti > i:nth-child(7) { --confetti-x: 96px; --confetti-y: -168px; --confetti-rotate: -190deg; }
+.cake-confetti > i:nth-child(8) { --confetti-x: 139px; --confetti-y: -202px; --confetti-rotate: 310deg; }
+.cake-confetti > i:nth-child(9) { --confetti-x: 168px; --confetti-y: -128px; --confetti-rotate: -280deg; }
+.cake-confetti > i:nth-child(10) { --confetti-x: -176px; --confetti-y: -76px; --confetti-rotate: 240deg; }
+.cake-confetti > i:nth-child(11) { --confetti-x: -139px; --confetti-y: -112px; --confetti-rotate: -320deg; }
+.cake-confetti > i:nth-child(12) { --confetti-x: -93px; --confetti-y: -91px; --confetti-rotate: 200deg; }
+.cake-confetti > i:nth-child(13) { --confetti-x: 87px; --confetti-y: -96px; --confetti-rotate: -210deg; }
+.cake-confetti > i:nth-child(14) { --confetti-x: 132px; --confetti-y: -105px; --confetti-rotate: 270deg; }
+.cake-confetti > i:nth-child(15) { --confetti-x: 181px; --confetti-y: -64px; --confetti-rotate: -300deg; }
+.cake-confetti > i:nth-child(16) { --confetti-x: -111px; --confetti-y: -238px; --confetti-rotate: 220deg; }
+.cake-confetti > i:nth-child(17) { --confetti-x: 113px; --confetti-y: -242px; --confetti-rotate: -260deg; }
+.cake-confetti > i:nth-child(18) { --confetti-x: 4px; --confetti-y: -248px; --confetti-rotate: 340deg; }
+
+.cake-scene.is-blown .cake-art {
+  animation: cakeCelebrate 760ms cubic-bezier(0.17, 0.84, 0.44, 1) both;
+}
+
+.cake-scene.is-blown .candle-flame {
+  animation: candleOut 240ms ease-out both;
+}
+
+.cake-scene.is-blown .candle-smoke {
+  animation: candleSmoke 1.7s ease-out 150ms both;
+}
+
+.cake-scene.is-blown .cake-confetti > i {
+  animation: cakeConfettiBurst 1.55s cubic-bezier(0.14, 0.72, 0.34, 1) both;
+}
+
+.cake-scene.is-blown .cake-confetti > i:nth-child(2n) { animation-delay: 70ms; }
+.cake-scene.is-blown .cake-confetti > i:nth-child(3n) { animation-delay: 130ms; }
+
+.cake-instructions {
+  min-height: 82px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.cake-instructions p {
+  max-width: 480px;
+  margin: 0;
+  color: color-mix(in srgb, var(--card-text) 78%, transparent);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.cake-listening-copy,
+.cake-wish-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.cake-wish-copy {
+  color: var(--card-accent) !important;
+}
+
+.blow-meter {
+  width: min(280px, 64vw);
+  height: 10px;
+  overflow: hidden;
+  padding: 2px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 32%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--theme-panel) 72%, transparent);
+}
+
+.blow-meter > span {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--card-accent), #ffd54a);
+  transition: width 80ms linear;
+}
+
+.cake-fallback {
+  margin-top: 3px;
+  padding: 6px 10px;
+  border: 0;
+  border-bottom: 1px dashed currentColor;
+  background: transparent;
+  color: color-mix(in srgb, var(--card-text) 63%, transparent);
+  font-size: 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+@keyframes cakeSceneIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes cakeFloat {
+  0%, 100% { transform: translateY(3px); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes candleFlicker {
+  0% { transform: translateX(-50%) rotate(-5deg) scale(0.92, 1.03); }
+  100% { transform: translateX(-50%) rotate(5deg) scale(1.05, 0.94); }
+}
+
+@keyframes candleOut {
+  0% { opacity: 1; transform: translateX(-50%) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.1); }
+}
+
+@keyframes candleSmoke {
+  0% { opacity: 0; transform: translate(-50%, 7px) scale(0.5); }
+  25% { opacity: 0.6; }
+  100% { opacity: 0; transform: translate(-30%, -38px) scale(1.8); }
+}
+
+@keyframes cakeCelebrate {
+  0% { transform: scale(1); }
+  28% { transform: scale(0.94) translateY(7px); }
+  62% { transform: scale(1.08) translateY(-9px); }
+  100% { transform: scale(1) translateY(0); }
+}
+
+@keyframes cakeConfettiBurst {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0); }
+  12% { opacity: 1; }
+  76% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--confetti-x), var(--confetti-y)) rotate(var(--confetti-rotate)); }
+}
+
+@media (max-width: 640px) {
+  .cake-scene > h1 {
+    max-width: 340px;
+    font-size: clamp(27px, 8.5vw, 39px);
+  }
+
+  .birthday-cake {
+    width: 300px;
+    height: 270px;
+    flex-basis: 270px;
+    margin-top: -5px;
+    transform: scale(0.9);
+  }
+
+  .cake-instructions {
+    min-height: 76px;
+    margin-top: -10px;
+  }
+
+  .cake-instructions p {
+    max-width: 320px;
+    font-size: 11px;
+  }
+}
+
+@media (max-height: 700px) and (max-width: 760px) {
+  .birthday-cake {
+    height: 238px;
+    flex-basis: 238px;
+    margin-top: -20px;
+    transform: scale(0.78);
+  }
+
+  .cake-instructions {
+    margin-top: -17px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cake-scene,
+  .cake-art,
+  .candle-flame,
+  .cake-scene.is-blown .cake-art,
+  .cake-scene.is-blown .cake-confetti > i,
+  .cake-scene.is-blown .candle-smoke {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

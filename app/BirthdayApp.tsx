@@ -18,6 +18,7 @@ import {
   LoaderCircle,
   Mail,
   MessageCircle,
+  Mic,
   Music2,
   PartyPopper,
   Pause,
@@ -32,6 +33,7 @@ import {
   Upload,
   Volume2,
   VolumeX,
+  Wind,
 } from "lucide-react";
 import {
   type ChangeEvent,
@@ -95,7 +97,7 @@ declare global {
 
 type RecipientScreen =
   | "envelope"
-  | "countdown"
+  | "cake"
   | "cover"
   | "gifts"
   | "memories"
@@ -1805,6 +1807,214 @@ function Countdown({ birthdayDate }: { birthdayDate: string }) {
   );
 }
 
+type CakeBlowStatus =
+  | "idle"
+  | "starting"
+  | "listening"
+  | "blown"
+  | "unavailable";
+
+function BirthdayCakeExperience({
+  recipientName,
+  onComplete,
+}: {
+  recipientName: string;
+  onComplete: () => void;
+}) {
+  const [status, setStatus] = useState<CakeBlowStatus>("idle");
+  const [blowLevel, setBlowLevel] = useState(0);
+  const animationFrameRef = useRef<number | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const completeTimerRef = useRef<number | null>(null);
+  const completedRef = useRef(false);
+
+  function stopListening() {
+    if (animationFrameRef.current !== null) {
+      window.cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    const context = audioContextRef.current;
+    audioContextRef.current = null;
+    if (context && context.state !== "closed") {
+      void context.close();
+    }
+  }
+
+  function blowOutCandles() {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    stopListening();
+    setBlowLevel(1);
+    setStatus("blown");
+    completeTimerRef.current = window.setTimeout(onComplete, 2200);
+  }
+
+  useEffect(
+    () => () => {
+      stopListening();
+      if (completeTimerRef.current !== null) {
+        window.clearTimeout(completeTimerRef.current);
+      }
+    },
+  );
+
+  async function startListening() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setStatus("unavailable");
+      return;
+    }
+
+    setStatus("starting");
+    try {
+      const context = new AudioContext();
+      audioContextRef.current = context;
+      await context.resume();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          autoGainControl: false,
+          echoCancellation: true,
+          noiseSuppression: false,
+        },
+      });
+      streamRef.current = stream;
+      const source = context.createMediaStreamSource(stream);
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.42;
+      source.connect(analyser);
+
+      setStatus("listening");
+
+      const samples = new Uint8Array(analyser.fftSize);
+      const startedAt = performance.now();
+      let baseline = 0.018;
+      let loudFrames = 0;
+      let lastMeterUpdate = 0;
+
+      const measure = (now: number) => {
+        analyser.getByteTimeDomainData(samples);
+        let sum = 0;
+        for (const sample of samples) {
+          const normalized = (sample - 128) / 128;
+          sum += normalized * normalized;
+        }
+        const rms = Math.sqrt(sum / samples.length);
+
+        if (now - startedAt < 650) {
+          baseline = baseline * 0.9 + rms * 0.1;
+        }
+        const threshold = Math.max(0.055, Math.min(0.16, baseline * 2.8));
+        if (now - lastMeterUpdate > 48) {
+          setBlowLevel(Math.min(1, rms / threshold));
+          lastMeterUpdate = now;
+        }
+
+        if (now - startedAt > 650 && rms > threshold) {
+          loudFrames += 1;
+        } else {
+          loudFrames = Math.max(0, loudFrames - 2);
+        }
+
+        if (loudFrames >= 8) {
+          blowOutCandles();
+          return;
+        }
+        animationFrameRef.current = window.requestAnimationFrame(measure);
+      };
+      animationFrameRef.current = window.requestAnimationFrame(measure);
+    } catch {
+      stopListening();
+      setStatus("unavailable");
+    }
+  }
+
+  const isBlown = status === "blown";
+
+  return (
+    <div className={`cake-scene ${isBlown ? "is-blown" : ""}`}>
+      <small>{isBlown ? "Хүсэл чинь биелэх болтугай" : "Нэг хүсэл бодоорой"}</small>
+      <h1>
+        {isBlown
+          ? `Төрсөн өдрийн мэнд, ${recipientName}!`
+          : `${recipientName}, лаагаа үлээгээрэй`}
+      </h1>
+
+      <div className="birthday-cake">
+        <div className="cake-confetti" aria-hidden="true">
+          {Array.from({ length: 18 }).map((_, index) => (
+            <i key={index} />
+          ))}
+        </div>
+        <div className="cake-art" aria-hidden="true">
+          <span className="cake-candles">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <i className={`cake-candle candle-${index + 1}`} key={index}>
+                <b className="candle-flame" />
+                <b className="candle-smoke" />
+              </i>
+            ))}
+          </span>
+          <span className="cake-frosting">
+            <i />
+            <i />
+            <i />
+            <i />
+            <i />
+          </span>
+          <span className="cake-layer cake-layer-top" />
+          <span className="cake-layer cake-layer-bottom" />
+          <span className="cake-plate" />
+        </div>
+        <button
+          type="button"
+          className="cake-tap-target"
+          disabled={isBlown}
+          onClick={blowOutCandles}
+        >
+          <span className="visually-hidden">Лааг дарж унтраах</span>
+        </button>
+      </div>
+
+      <div className="cake-instructions" aria-live="polite">
+        {status === "idle" && (
+          <>
+            <p>Микрофоноо асаагаад бялуу руугаа зөөлөн үлээгээрэй.</p>
+            <button type="button" className="primary-button" onClick={startListening}>
+              <Mic size={18} /> Микрофон асаах
+            </button>
+          </>
+        )}
+        {status === "starting" && (
+          <p className="cake-listening-copy"><Mic size={18} /> Микрофон нээж байна...</p>
+        )}
+        {status === "listening" && (
+          <>
+            <p className="cake-listening-copy"><Wind size={19} /> Одоо үлээгээрэй...</p>
+            <div className="blow-meter" aria-label="Үлээлтийн хүч">
+              <span style={{ width: `${Math.max(5, blowLevel * 100)}%` }} />
+            </div>
+          </>
+        )}
+        {status === "unavailable" && (
+          <p>Микрофон ашиглах боломжгүй байна. Бялуун дээр дарж лаагаа унтраагаарай.</p>
+        )}
+        {isBlown && (
+          <p className="cake-wish-copy"><Sparkles size={19} /> Мэндчилгээг нээж байна...</p>
+        )}
+      </div>
+
+      {!isBlown && (
+        <button type="button" className="cake-fallback" onClick={blowOutCandles}>
+          Эсвэл энд дарж лаагаа унтраах
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function GreetingExperience({ slug }: { slug: string }) {
   const [greeting, setGreeting] = useState<PublicGreeting | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1946,7 +2156,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
   const template = getTemplate(greeting.template);
   const progress: Record<RecipientScreen, number> = {
     envelope: 0,
-    countdown: 1,
+    cake: 1,
     cover: 2,
     gifts: 3,
     memories: 4,
@@ -2036,8 +2246,8 @@ export function GreetingExperience({ slug }: { slug: string }) {
             <button
               type="button"
               className="primary-button"
-              onClick={() => {
-                setScreen("countdown");
+            onClick={() => {
+                setScreen("cake");
                 void sendAction("open");
               }}
             >
@@ -2046,20 +2256,11 @@ export function GreetingExperience({ slug }: { slug: string }) {
           </div>
         )}
 
-        {screen === "countdown" && (
-          <div className="countdown-scene">
-            <small>Төрсөн өдөр хүртэл</small>
-            <h1>{greeting.recipientName}-ийн өдөр</h1>
-            <Countdown birthdayDate={greeting.birthdayDate} />
-            <Mascot gender={greeting.recipientGender} variant="celebrate" />
-            <button
-              type="button"
-              className="primary-button"
-              onClick={() => setScreen("cover")}
-            >
-              Мэндчилгээг үзэх <ArrowRight size={18} />
-            </button>
-          </div>
+        {screen === "cake" && (
+          <BirthdayCakeExperience
+            recipientName={greeting.recipientName}
+            onComplete={() => setScreen("cover")}
+          />
         )}
 
         {screen === "cover" && (
