@@ -43,8 +43,20 @@ export async function POST(request: Request) {
   const eventId = event.id?.toString().trim();
   const eventType = (event.type || "").toLowerCase();
   const intent = event.data?.object;
-  if (!eventId || !eventType || !intent?.id) {
-    return jsonError("wire.mn event ID эсвэл intent дутуу байна.", 400);
+  if (!eventId || !eventType) {
+    return jsonError("wire.mn event ID эсвэл төрөл дутуу байна.", 400);
+  }
+
+  const paymentEventTypes = new Set([
+    "payment_intent.succeeded",
+    "payment_intent.canceled",
+    "payment_intent.failed",
+  ]);
+  if (!paymentEventTypes.has(eventType)) {
+    return Response.json({ ok: true, ignored: true });
+  }
+  if (!intent?.id) {
+    return jsonError("wire.mn PaymentIntent дутуу байна.", 400);
   }
 
   const db = await getDb();
