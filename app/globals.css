@@ -1459,14 +1459,14 @@ img {
 }
 
 .qpay-qr {
-  width: 212px;
+  width: min(248px, 100%);
   aspect-ratio: 1;
   display: grid;
   place-items: center;
-  margin: 0 auto 15px;
-  padding: 10px;
+  margin: 0 auto 12px;
+  padding: 11px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 12px;
   background: #fff;
   color: #bbb3c4;
 }
@@ -1475,6 +1475,73 @@ img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.qpay-qr-hint {
+  margin: 0 auto 16px;
+  max-width: 260px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.qpay-memo-lead {
+  margin: 0 0 9px;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.qpay-memo {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  padding: 11px 12px;
+  border: 1px dashed #d8c48a;
+  border-radius: 10px;
+  background: #fffdf5;
+}
+
+.qpay-memo > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.qpay-memo small {
+  color: #9a854a;
+  font-size: 8px;
+  font-weight: 1000;
+  letter-spacing: 0.06em;
+}
+
+.qpay-memo strong {
+  overflow-wrap: anywhere;
+  color: var(--purple-dark);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 1000;
+}
+
+.qpay-memo button {
+  min-height: 38px;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: #e84d68;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 1000;
 }
 
 .payment-state {
@@ -1581,15 +1648,39 @@ img {
 }
 
 .bank-links {
-  margin-top: 17px;
+  margin-bottom: 17px;
 }
 
 .bank-links > span {
   display: block;
-  margin-bottom: 7px;
-  color: var(--muted);
-  font-size: 9px;
-  font-weight: 900;
+  margin-bottom: 9px;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 1000;
+  text-align: center;
+}
+
+.bank-links-primary {
+  min-height: 62px;
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  padding: 8px 14px;
+  border: 2px solid var(--purple);
+  border-radius: 10px;
+  background: #f4f0fc;
+  color: var(--purple-dark);
+  font-size: 13px;
+  font-weight: 1000;
+}
+
+.bank-links-primary img {
+  width: 33px;
+  height: 33px;
+  flex-shrink: 0;
+  object-fit: contain;
 }
 
 .bank-links > div {
@@ -1598,35 +1689,52 @@ img {
   gap: 6px;
 }
 
-.bank-links a {
+.bank-links-more {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: #f1edf7;
+  color: var(--purple-dark);
+  font-size: 10px;
+  font-weight: 1000;
+}
+
+.bank-links > div a {
   min-width: 0;
-  min-height: 55px;
+  min-height: 74px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 6px;
+  gap: 6px;
+  padding: 8px 6px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 9px;
   background: #fff;
   color: var(--ink);
-  font-size: 8px;
-  font-weight: 800;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1.3;
   text-align: center;
 }
 
-.bank-links a img {
-  width: 23px;
-  height: 23px;
+.bank-links > div a img {
+  width: 30px;
+  height: 30px;
   object-fit: contain;
 }
 
-.bank-links a span {
+.bank-links > div a span {
   width: 100%;
+  display: -webkit-box;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .payment-summary {
@@ -3854,7 +3962,7 @@ img {
   }
 
   .bank-links > div {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .payment-summary {

@@ -6,6 +6,8 @@ import {
   ArrowLeft,
   Check,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Copy,
   ExternalLink,
   Gift,
@@ -148,6 +150,8 @@ export function PaymentApp() {
     externalUrl: string;
   } | null>(null);
   const [payLinkCopied, setPayLinkCopied] = useState(false);
+  const [orderIdCopied, setOrderIdCopied] = useState(false);
+  const [showAllBanks, setShowAllBanks] = useState(false);
   const publishLock = useRef(false);
 
   const publishGreeting = useCallback(async (id: string) => {
@@ -293,12 +297,35 @@ export function PaymentApp() {
     }
   }
 
+  async function copyOrderId() {
+    if (!payment) return;
+    try {
+      await navigator.clipboard.writeText(payment.orderId);
+      setOrderIdCopied(true);
+      window.setTimeout(() => setOrderIdCopied(false), 2200);
+    } catch {
+      window.prompt("Гүйлгээний утгыг хуулна уу", payment.orderId);
+    }
+  }
+
   const qrSource = payment?.qrImage
     ? payment.qrImage.startsWith("data:") || payment.qrImage.startsWith("http")
       ? payment.qrImage
       : `data:image/png;base64,${payment.qrImage}`
     : "";
   const hasBankLinks = Boolean(payment?.deeplinks.length);
+  // The QPay wallet itself is the odd one out — it is not a bank, and buyers
+  // reach for it first, so it gets the wide row above the bank grid.
+  const primaryBank =
+    payment?.deeplinks.find((bank) => /qpay/i.test(bank.name)) ?? null;
+  const gridBanks = (payment?.deeplinks ?? []).filter(
+    (bank) => bank !== primaryBank,
+  );
+  const collapsedBankCount = 6;
+  const visibleBanks = showAllBanks
+    ? gridBanks
+    : gridBanks.slice(0, collapsedBankCount);
+  const hiddenBankCount = Math.max(0, gridBanks.length - collapsedBankCount);
   const isPending =
     payment &&
     ["requires_action", "processing"].includes(payment.status);
@@ -435,9 +462,14 @@ export function PaymentApp() {
                     </div>
                   )}
                   {qrSource ? (
-                    <div className="qpay-qr">
-                      <img src={qrSource} alt="QPay төлбөрийн QR код" />
-                    </div>
+                    <>
+                      <div className="qpay-qr">
+                        <img src={qrSource} alt="QPay төлбөрийн QR код" />
+                      </div>
+                      <p className="qpay-qr-hint">
+                        Банк аппаараа QR-ыг уншуулж төлбөрөө хийнэ үү.
+                      </p>
+                    </>
                   ) : hasBankLinks ? null : payment.shortUrl ? (
                     <a
                       className="qpay-checkout-button"
@@ -452,6 +484,59 @@ export function PaymentApp() {
                       <QrCode size={94} />
                     </div>
                   )}
+
+                  <p className="qpay-memo-lead">
+                    Гүйлгээний утга нь ихэнх банкан дээр автоматаар бөглөгдөнө.
+                    Хэрэв гараар оруулах шаардлагатай бол:
+                  </p>
+                  <div className="qpay-memo">
+                    <div>
+                      <small>ГҮЙЛГЭЭНИЙ УТГА</small>
+                      <strong>{payment.orderId}</strong>
+                    </div>
+                    <button type="button" onClick={copyOrderId}>
+                      {orderIdCopied ? <Check size={16} /> : <Copy size={16} />}
+                      {orderIdCopied ? "Хуулагдлаа" : "Хуулах"}
+                    </button>
+                  </div>
+
+                  {hasBankLinks && (
+                    <div className="bank-links">
+                      <span>эсвэл банкны аппаа шууд нээх:</span>
+                      {primaryBank && (
+                        <a className="bank-links-primary" href={primaryBank.link}>
+                          {primaryBank.logo ? (
+                            <img src={primaryBank.logo} alt="" />
+                          ) : (
+                            <QrCode size={22} />
+                          )}
+                          <span>{primaryBank.description || primaryBank.name}</span>
+                        </a>
+                      )}
+                      <div>
+                        {visibleBanks.map((bank) => (
+                          <a href={bank.link} key={`${bank.name}-${bank.link}`}>
+                            {bank.logo ? <img src={bank.logo} alt="" /> : <QrCode size={19} />}
+                            <span>{bank.description || bank.name}</span>
+                          </a>
+                        ))}
+                      </div>
+                      {hiddenBankCount > 0 && (
+                        <button
+                          type="button"
+                          className="bank-links-more"
+                          onClick={() => setShowAllBanks((current) => !current)}
+                        >
+                          {showAllBanks ? (
+                            <>Хураах <ChevronUp size={15} /></>
+                          ) : (
+                            <>Бүх банкыг харах (+{hiddenBankCount}) <ChevronDown size={15} /></>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   <div className="payment-state">
                     {payment.status === "processing" ? (
                       <LoaderCircle size={19} className="spin" />
@@ -462,42 +547,16 @@ export function PaymentApp() {
                       <strong>
                         {payment.status === "processing"
                           ? "Төлбөрийг баталгаажуулж байна"
-                          : qrSource && hasBankLinks
-                            ? "QR уншуулах эсвэл банкаа сонгоно уу"
-                            : qrSource
-                              ? "QR кодоо уншуулна уу"
-                              : hasBankLinks
-                                ? "Банкны аппаа сонгоно уу"
-                                : payment.shortUrl
-                                  ? "Дээрх товчоор төлбөрөө төлнө үү"
-                                  : "Төлбөрийн холбоосыг бэлдэж байна"}
+                          : "Төлбөрөө хүлээж байна"}
                       </strong>
                       <small>
                         {payment.status === "processing"
                           ? "QPay-аас ирсэн төлбөрийг backend шалгаж байна."
-                          : hasBankLinks
-                            ? "Банкаа дарахад аппаа шууд нээнэ. Төлсний дараа энэ хуудас өөрөө шинэчлэгдэнэ."
-                            : qrSource
-                              ? "Банкны апп эсвэл QPay ашиглана уу."
-                              : payment.shortUrl
-                                ? "Төлбөрийн хуудсан дээр QR код болон банкны аппын холбоос гарч ирнэ."
-                                : "Хэсэг хугацааны дараа хуудсаа сэргээнэ үү."}
+                          : "Төлсний дараа энэ хуудас өөрөө шинэчлэгдэнэ."}
                       </small>
                     </div>
                   </div>
-                  {hasBankLinks && (
-                    <div className="bank-links">
-                      <span>Банкны апп</span>
-                      <div>
-                        {payment.deeplinks.map((bank) => (
-                          <a href={bank.link} key={`${bank.name}-${bank.link}`}>
-                            {bank.logo ? <img src={bank.logo} alt="" /> : <QrCode size={19} />}
-                            <span>{bank.description || bank.name}</span>
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+
                   {payment.shortUrl && (qrSource || hasBankLinks) && (
                     <a
                       className="qpay-short-link"

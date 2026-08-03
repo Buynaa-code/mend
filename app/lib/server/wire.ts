@@ -252,14 +252,13 @@ async function createWireCheckoutSession(input: {
 }
 
 /**
- * Creates a PaymentIntent, reserves a hosted checkout URL for it, then confirms
- * it so the QR payload and bank deeplinks can be shown on our own /pay page.
+ * Creates a PaymentIntent and confirms it, so the QR payload and bank deeplinks
+ * come back in `next_action` and can be rendered on our own /pay page.
  *
- * The session is opened before the confirm on purpose: sessions are only
- * accepted while the intent is still in `requires_payment_method`. Confirming
- * afterwards leaves the hosted page working — it renders whatever `next_action`
- * the intent already carries — so it stays a usable fallback if the confirm or
- * the artifact extraction comes back empty.
+ * Only if the confirm fails, or hands back nothing usable, do we open a hosted
+ * checkout session as a fallback — that ordering matters, because a session is
+ * only accepted while the intent is still in `requires_payment_method`, and
+ * reserving one up front is what stopped the confirm from dispatching.
  */
 export async function createWireInvoice(input: {
   paymentId: string;
@@ -281,9 +280,6 @@ export async function createWireInvoice(input: {
       amount: GREETING_PRICE,
       currency: PAYMENT_CURRENCY,
       description,
-      // Let wire.mn pick the operator, so the confirm below needs no choice
-      // from us. It does not dispatch at create time, so the checkout session
-      // still sees the intent in `requires_payment_method`.
       automatic_operator: true,
       allowed_operators: input.allowedOperators,
       metadata: {
@@ -299,41 +295,63 @@ export async function createWireInvoice(input: {
     throw new Error("wire.mn PaymentIntent ID буцаагаагүй.");
   }
 
-  const session = await createWireCheckoutSession({
-    paymentId: input.paymentId,
-    paymentIntentId: created.id,
-    successUrl: input.successUrl,
-    cancelUrl: input.cancelUrl,
-  });
-
-  const checkoutUrl = String(session.url ?? "");
-  if (!checkoutUrl) {
-    throw new Error("wire.mn checkout session URL буцаагаагүй.");
-  }
-
-  // A failed confirm is not fatal: the hosted page can still take the payment.
   let artifacts = { qrText: "", qrImage: "", deeplinks: [] as WireDeeplink[] };
+  let confirmFailure = "";
   try {
     const confirmed = await wireRequest<WirePaymentIntent>(
       `/v1/payment_intents/${encodeURIComponent(created.id)}/confirm`,
       {
         method: "POST",
         idempotencyKey: `${input.paymentId}:confirm`,
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          // `operator` defaults to the first allowed one, but be explicit so a
+          // change in that default cannot silently pick a different bank rail.
+          operator: input.allowedOperators[0],
+          return_url: isHttpsUrl(input.successUrl) ? input.successUrl : undefined,
+        }),
       },
     );
     artifacts = extractOperatorArtifacts(confirmed.next_action);
-  } catch {
-    // Fall through with empty artifacts and rely on the hosted checkout URL.
+  } catch (caught) {
+    confirmFailure =
+      caught instanceof Error ? caught.message : "wire.mn confirm амжилтгүй.";
+  }
+
+  const hasInAppArtifacts = Boolean(
+    artifacts.qrImage || artifacts.deeplinks.length,
+  );
+  if (hasInAppArtifacts) {
+    return {
+      provider: "wire" as const,
+      invoiceId: created.id,
+      qrText: artifacts.qrText,
+      qrImage: artifacts.qrImage,
+      shortUrl: "",
+      deeplinks: artifacts.deeplinks,
+    };
+  }
+
+  // Nothing renderable in-app — hand the buyer to the hosted page instead.
+  const session = await createWireCheckoutSession({
+    paymentId: input.paymentId,
+    paymentIntentId: created.id,
+    successUrl: input.successUrl,
+    cancelUrl: input.cancelUrl,
+  });
+  const checkoutUrl = String(session.url ?? "");
+  if (!checkoutUrl) {
+    throw new Error(
+      confirmFailure || "wire.mn checkout session URL буцаагаагүй.",
+    );
   }
 
   return {
     provider: "wire" as const,
     invoiceId: created.id,
     qrText: artifacts.qrText,
-    qrImage: artifacts.qrImage,
+    qrImage: "",
     shortUrl: checkoutUrl,
-    deeplinks: artifacts.deeplinks,
+    deeplinks: [],
   };
 }
 
