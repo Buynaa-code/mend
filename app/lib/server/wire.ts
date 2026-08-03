@@ -7,7 +7,23 @@ import {
 } from "./payments";
 import { constantTimeEqual } from "./security";
 
-type WireNextAction = Record<string, unknown> | null | undefined;
+/**
+ * `next_action` is free-form in the API reference, but the wire.mn hosted
+ * checkout page reads it as `{ type, qr: { text, image_url, deeplinks } }` —
+ * so a QPay intent exposes its QR payload and bank deeplinks under `qr`.
+ */
+type WireNextAction = {
+  type?: string;
+  qr?: {
+    text?: string;
+    image_url?: string;
+    deeplinks?: Array<{
+      name?: string;
+      link?: string;
+      logo?: string;
+    }>;
+  };
+} | null | undefined;
 
 type WirePaymentIntent = {
   id?: string;
@@ -151,6 +167,44 @@ async function wireRequest<T>(
   return data as T;
 }
 
+export type WireDeeplink = {
+  name: string;
+  description: string;
+  logo: string;
+  link: string;
+};
+
+function isSafeLink(value: string) {
+  return Boolean(value) && !/^\s*(javascript|data|vbscript):/i.test(value);
+}
+
+function extractOperatorArtifacts(nextAction: WireNextAction) {
+  const empty = {
+    qrText: "",
+    qrImage: "",
+    deeplinks: [] as WireDeeplink[],
+  };
+  const qr = nextAction?.qr;
+  if (!qr) return empty;
+
+  const image = String(qr.image_url ?? "");
+  const deeplinks = (qr.deeplinks ?? [])
+    .map((item) => {
+      const name = String(item?.name ?? "");
+      const link = String(item?.link ?? "");
+      if (!name || !isSafeLink(link)) return null;
+      return { name, description: "", logo: String(item?.logo ?? ""), link };
+    })
+    .filter((item): item is WireDeeplink => item !== null);
+
+  return {
+    qrText: String(qr.text ?? ""),
+    // Only http(s) or data URIs — never let a hostile value reach an <img src>.
+    qrImage: image.startsWith("data:image/") || isHttpsUrl(image) ? image : "",
+    deeplinks,
+  };
+}
+
 function isHttpsUrl(value: string) {
   try {
     return new URL(value).protocol === "https:";
@@ -198,11 +252,14 @@ async function createWireCheckoutSession(input: {
 }
 
 /**
- * Creates a PaymentIntent and opens a Wire-hosted checkout session for it.
+ * Creates a PaymentIntent, reserves a hosted checkout URL for it, then confirms
+ * it so the QR payload and bank deeplinks can be shown on our own /pay page.
  *
- * The intent is deliberately left unconfirmed: sessions are only accepted on
- * intents in `requires_payment_method`, and the hosted page is what renders the
- * QR code plus the bank deeplinks that let a buyer pay from the same phone.
+ * The session is opened before the confirm on purpose: sessions are only
+ * accepted while the intent is still in `requires_payment_method`. Confirming
+ * afterwards leaves the hosted page working — it renders whatever `next_action`
+ * the intent already carries — so it stays a usable fallback if the confirm or
+ * the artifact extraction comes back empty.
  */
 export async function createWireInvoice(input: {
   paymentId: string;
@@ -224,8 +281,10 @@ export async function createWireInvoice(input: {
       amount: GREETING_PRICE,
       currency: PAYMENT_CURRENCY,
       description,
-      // No `automatic_operator`: the hosted checkout page picks the operator,
-      // and the intent must stay in `requires_payment_method` for the session.
+      // Let wire.mn pick the operator, so the confirm below needs no choice
+      // from us. It does not dispatch at create time, so the checkout session
+      // still sees the intent in `requires_payment_method`.
+      automatic_operator: true,
       allowed_operators: input.allowedOperators,
       metadata: {
         payment_id: input.paymentId,
@@ -252,13 +311,29 @@ export async function createWireInvoice(input: {
     throw new Error("wire.mn checkout session URL буцаагаагүй.");
   }
 
+  // A failed confirm is not fatal: the hosted page can still take the payment.
+  let artifacts = { qrText: "", qrImage: "", deeplinks: [] as WireDeeplink[] };
+  try {
+    const confirmed = await wireRequest<WirePaymentIntent>(
+      `/v1/payment_intents/${encodeURIComponent(created.id)}/confirm`,
+      {
+        method: "POST",
+        idempotencyKey: `${input.paymentId}:confirm`,
+        body: JSON.stringify({}),
+      },
+    );
+    artifacts = extractOperatorArtifacts(confirmed.next_action);
+  } catch {
+    // Fall through with empty artifacts and rely on the hosted checkout URL.
+  }
+
   return {
     provider: "wire" as const,
     invoiceId: created.id,
-    qrText: "",
-    qrImage: "",
+    qrText: artifacts.qrText,
+    qrImage: artifacts.qrImage,
     shortUrl: checkoutUrl,
-    deeplinks: [],
+    deeplinks: artifacts.deeplinks,
   };
 }
 

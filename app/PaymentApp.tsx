@@ -93,6 +93,29 @@ function formatAmount(amount: number) {
   return new Intl.NumberFormat("mn-MN").format(amount);
 }
 
+/**
+ * Social in-app browsers sandbox custom URL schemes, so a bank deeplink tapped
+ * inside Messenger or Instagram often opens nothing. Detect them so the page can
+ * offer a hand-off to the real browser before the buyer gets stuck.
+ */
+function detectInAppBrowser() {
+  const userAgent = navigator.userAgent || "";
+  if (!/FBAN|FBAV|FB_IAB|FBIOS|Instagram|Messenger|Orca-Android/i.test(userAgent)) {
+    return null;
+  }
+  const appName = /Instagram/i.test(userAgent)
+    ? "Instagram"
+    : /Messenger|Orca-Android|FBIOS|FBAN|FBAV|FB_IAB/i.test(userAgent)
+      ? "Messenger"
+      : "Facebook";
+  const { host, pathname, search } = window.location;
+  const target = `${host}${pathname}${search}`;
+  const externalUrl = /iPhone|iPad|iPod/i.test(userAgent)
+    ? `x-safari-https://${target}`
+    : `intent://${target}#Intent;scheme=https;action=android.intent.action.VIEW;end`;
+  return { appName, externalUrl };
+}
+
 function paymentCredential(paymentId: string): Record<string, string> {
   const recovery = window.sessionStorage.getItem(
     `mend-recovery-v1:${paymentId}`,
@@ -120,6 +143,11 @@ export function PaymentApp() {
   const [recoveryEmail, setRecoveryEmail] = useState("");
   const [recoveryOrder, setRecoveryOrder] = useState("");
   const [recoverySent, setRecoverySent] = useState(false);
+  const [inAppBrowser, setInAppBrowser] = useState<{
+    appName: string;
+    externalUrl: string;
+  } | null>(null);
+  const [payLinkCopied, setPayLinkCopied] = useState(false);
   const publishLock = useRef(false);
 
   const publishGreeting = useCallback(async (id: string) => {
@@ -191,6 +219,7 @@ export function PaymentApp() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      setInAppBrowser(detectInAppBrowser());
       const params = new URLSearchParams(window.location.search);
       const id = params.get("payment") || "";
       const recovery = params.get("recovery") || "";
@@ -254,11 +283,22 @@ export function PaymentApp() {
     setRecoverySent(true);
   }
 
+  async function copyPayLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setPayLinkCopied(true);
+      window.setTimeout(() => setPayLinkCopied(false), 2200);
+    } catch {
+      window.prompt("Энэ линкийг хуулна уу", window.location.href);
+    }
+  }
+
   const qrSource = payment?.qrImage
-    ? payment.qrImage.startsWith("data:")
+    ? payment.qrImage.startsWith("data:") || payment.qrImage.startsWith("http")
       ? payment.qrImage
       : `data:image/png;base64,${payment.qrImage}`
     : "";
+  const hasBankLinks = Boolean(payment?.deeplinks.length);
   const isPending =
     payment &&
     ["requires_action", "processing"].includes(payment.status);
@@ -373,11 +413,32 @@ export function PaymentApp() {
                 </div>
               ) : (
                 <>
+                  {inAppBrowser && hasBankLinks && (
+                    <div className="inapp-notice">
+                      <p>
+                        Та {inAppBrowser.appName} доторх browser ашиглаж байна —
+                        банкны апп эндээс нээгдэхгүй байж болзошгүй. Гадны
+                        browser-ээр нээж төлөхийг зөвлөж байна.
+                      </p>
+                      <div>
+                        <a
+                          className="inapp-notice-open"
+                          href={inAppBrowser.externalUrl}
+                        >
+                          <ExternalLink size={16} /> Browser-ээр нээх
+                        </a>
+                        <button type="button" onClick={copyPayLink}>
+                          {payLinkCopied ? <Check size={16} /> : <Copy size={16} />}
+                          {payLinkCopied ? "Хуулагдлаа" : "Линк хуулах"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {qrSource ? (
                     <div className="qpay-qr">
                       <img src={qrSource} alt="QPay төлбөрийн QR код" />
                     </div>
-                  ) : payment.shortUrl ? (
+                  ) : hasBankLinks ? null : payment.shortUrl ? (
                     <a
                       className="qpay-checkout-button"
                       href={payment.shortUrl}
@@ -401,34 +462,30 @@ export function PaymentApp() {
                       <strong>
                         {payment.status === "processing"
                           ? "Төлбөрийг баталгаажуулж байна"
-                          : qrSource
-                            ? "QR кодоо уншуулна уу"
-                            : payment.shortUrl
-                              ? "Дээрх товчоор төлбөрөө төлнө үү"
-                              : "Төлбөрийн холбоосыг бэлдэж байна"}
+                          : qrSource && hasBankLinks
+                            ? "QR уншуулах эсвэл банкаа сонгоно уу"
+                            : qrSource
+                              ? "QR кодоо уншуулна уу"
+                              : hasBankLinks
+                                ? "Банкны аппаа сонгоно уу"
+                                : payment.shortUrl
+                                  ? "Дээрх товчоор төлбөрөө төлнө үү"
+                                  : "Төлбөрийн холбоосыг бэлдэж байна"}
                       </strong>
                       <small>
                         {payment.status === "processing"
                           ? "QPay-аас ирсэн төлбөрийг backend шалгаж байна."
-                          : qrSource
-                            ? "Банкны апп эсвэл QPay ашиглана уу."
-                            : payment.shortUrl
-                              ? "Утсан дээрээ банкны аппаа шууд нээх холбоос, компьютер дээр QR код гарч ирнэ. Төлсний дараа энэ хуудас өөрөө шинэчлэгдэнэ."
-                              : "Хэсэг хугацааны дараа хуудсаа сэргээнэ үү."}
+                          : hasBankLinks
+                            ? "Банкаа дарахад аппаа шууд нээнэ. Төлсний дараа энэ хуудас өөрөө шинэчлэгдэнэ."
+                            : qrSource
+                              ? "Банкны апп эсвэл QPay ашиглана уу."
+                              : payment.shortUrl
+                                ? "Төлбөрийн хуудсан дээр QR код болон банкны аппын холбоос гарч ирнэ."
+                                : "Хэсэг хугацааны дараа хуудсаа сэргээнэ үү."}
                       </small>
                     </div>
                   </div>
-                  {qrSource && payment.shortUrl && (
-                    <a
-                      className="qpay-short-link"
-                      href={payment.shortUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      QPay-аар нээх <ExternalLink size={16} />
-                    </a>
-                  )}
-                  {payment.deeplinks.length > 0 && (
+                  {hasBankLinks && (
                     <div className="bank-links">
                       <span>Банкны апп</span>
                       <div>
@@ -440,6 +497,16 @@ export function PaymentApp() {
                         ))}
                       </div>
                     </div>
+                  )}
+                  {payment.shortUrl && (qrSource || hasBankLinks) && (
+                    <a
+                      className="qpay-short-link"
+                      href={payment.shortUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      QPay-ийн хуудсаар нээх <ExternalLink size={16} />
+                    </a>
                   )}
                 </>
               )}
