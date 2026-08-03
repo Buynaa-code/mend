@@ -19,6 +19,7 @@ import { createProviderInvoice, assertProviderConfiguration } from "../../lib/se
 import {
   assertWireConfiguration,
   createWireInvoice,
+  getWireAllowedOperators,
   isWireMode,
 } from "../../lib/server/wire";
 import {
@@ -54,6 +55,10 @@ export async function POST(request: Request) {
     if (email && !isValidEmail(email)) {
       return jsonError("Email формат буруу байна.", 400);
     }
+
+    const wireOperators = isWireMode(providerModeValue)
+      ? await getWireAllowedOperators()
+      : [];
 
     const bindings = bindingsForMode;
     const ttlMinutes = Math.max(
@@ -116,6 +121,7 @@ export async function POST(request: Request) {
               paymentId,
               orderId,
               email,
+              allowedOperators: wireOperators,
             })
           : await createProviderInvoice({
               paymentId,
@@ -167,7 +173,10 @@ export async function POST(request: Request) {
         `)
         .bind(reason.slice(0, 500), new Date().toISOString(), paymentId)
         .run();
-      return jsonError(reason, 502);
+      return jsonError(
+        reason,
+        caught instanceof PaymentConfigurationError ? caught.status : 502,
+      );
     }
   } catch (caught) {
     if (caught instanceof RateLimitError) {
@@ -181,4 +190,3 @@ export async function POST(request: Request) {
     return jsonError(message, 500);
   }
 }
-

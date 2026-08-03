@@ -34,6 +34,13 @@ type WireErrorPayload = {
   };
 };
 
+type WireOperatorConnectionList = {
+  data?: Array<{
+    operator?: string;
+    status?: string;
+  }>;
+};
+
 export function isWireMode(mode?: string) {
   return mode?.trim().toLowerCase() === "wire";
 }
@@ -53,6 +60,40 @@ export async function assertWireConfiguration() {
       "wire.mn API key тохируулаагүй байна.",
     );
   }
+}
+
+export async function getWireAllowedOperators() {
+  await assertWireConfiguration();
+  const bindings = await getAppBindings();
+  const apiKey = bindings.WIRE_API_KEY!.trim();
+
+  if (apiKey.startsWith("sk_test_")) {
+    return ["sandbox"];
+  }
+
+  const connections = await wireRequest<WireOperatorConnectionList>(
+    "/v1/operator_connections?limit=100",
+    { method: "GET" },
+  );
+  const operators = [
+    ...new Set(
+      (connections.data ?? [])
+        .filter(
+          (connection) =>
+            connection.status?.trim().toLowerCase() === "active",
+        )
+        .map((connection) => connection.operator?.trim() ?? "")
+        .filter(Boolean),
+    ),
+  ];
+
+  if (operators.length === 0) {
+    throw new PaymentConfigurationError(
+      "wire.mn дээр идэвхтэй төлбөрийн оператор алга. Dashboard → Холболтууд хэсэгт QPay эсвэл бусад оператороо идэвхжүүлнэ үү.",
+    );
+  }
+
+  return operators;
 }
 
 async function wireRequest<T>(
@@ -136,6 +177,7 @@ export async function createWireInvoice(input: {
   paymentId: string;
   orderId: string;
   email: string;
+  allowedOperators: string[];
 }) {
   await assertWireConfiguration();
   const bindings = await getAppBindings();
@@ -148,7 +190,9 @@ export async function createWireInvoice(input: {
     body: JSON.stringify({
       amount: GREETING_PRICE,
       currency: PAYMENT_CURRENCY,
+      description,
       automatic_operator: true,
+      allowed_operators: input.allowedOperators,
       metadata: {
         payment_id: input.paymentId,
         order_id: input.orderId,
