@@ -195,6 +195,20 @@
   text-transform: uppercase;
 }
 
+.card-preview.template-retro .preview-copy {
+  bottom: 7%;
+}
+
+.card-preview.template-retro .preview-copy small {
+  display: inline-block;
+  margin-bottom: 7px;
+  padding: 3px 8px;
+  background: #fff4d3;
+  color: #e84b2c;
+  line-height: 1.2;
+  box-shadow: 3px 3px 0 rgba(75, 43, 22, 0.16);
+}
+
 .card-preview.template-minimal {
   border: 1px solid #111;
   border-radius: 0;
@@ -597,6 +611,12 @@
 }
 
 @media (max-width: 760px) {
+  .recipient-experience .cover-copy > small {
+    display: inline-block;
+    margin-bottom: 5px;
+    line-height: 1.2;
+  }
+
   .recipient-experience.template-party .cover-photo {
     box-shadow: 10px 10px 0 #ff5a4f;
   }

@@ -285,7 +285,7 @@ export function CardPreview({
             ))}
           </div>
           <div className="preview-copy">
-            <small>happy birthday</small>
+            <small>Чамд зориулсан</small>
             <h2>
               {draft.headline ||
                 `Төрсөн өдрийн мэнд, ${draft.recipientName || "чамдаа"}!`}
@@ -2069,7 +2069,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
               <Camera size={21} />
             </div>
             <div className="cover-copy">
-              <small>happy birthday</small>
+              <small>Чамд зориулсан</small>
               <h1>{greeting.headline}</h1>
               <p>{greeting.senderName}-ээс</p>
               <button

@@ -657,7 +657,7 @@ function DeviceMockup({
                     color: template.accent,
                   }}
                 >
-                  happy birthday
+                  made with mend.
                 </span>
                 <h2
                   style={{

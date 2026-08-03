@@ -176,7 +176,7 @@ async function createStoryFile(greeting: StoryGreeting) {
   context.fillStyle = template.accent;
   context.font = "1000 44px Nunito, system-ui, sans-serif";
   context.letterSpacing = "3px";
-  context.fillText("MEND.  ·  HAPPY BIRTHDAY", 102, 142);
+  context.fillText("MEND.  ·  ЧАМД ЗОРИУЛАВ", 102, 142);
   context.letterSpacing = "0px";
 
   const photoX = 102;
