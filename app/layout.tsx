@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Nunito } from "next/font/google";
+import { Caveat, Geist_Mono, Nunito } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 
 const nunito = Nunito({
   variable: "--font-nunito",
   subsets: ["latin", "cyrillic"],
+});
+
+const caveat = Caveat({
+  variable: "--font-caveat",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
 });
 
 const geistMono = Geist_Mono({
@@ -55,7 +61,7 @@ export default function RootLayout({
   return (
     <html lang="mn">
       <body
-        className={`${nunito.variable} ${geistMono.variable} antialiased`}
+        className={`${nunito.variable} ${caveat.variable} ${geistMono.variable} antialiased`}
       >
         {children}
       </body>

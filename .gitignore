@@ -42,3 +42,8 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+
+# Editor / local tooling state
+/.claude/
+/.mcp.json
+/tmp/

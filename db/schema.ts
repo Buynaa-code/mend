@@ -12,6 +12,7 @@ export const greetings = sqliteTable("greetings", {
   accessCodeId: text("access_code_id").unique(),
   publicSlug: text("public_slug").notNull().unique(),
   recipientName: text("recipient_name").notNull(),
+  recipientGender: text("recipient_gender").notNull().default("female"),
   senderName: text("sender_name").notNull(),
   template: text("template").notNull(),
   headline: text("headline").notNull(),
@@ -122,6 +123,7 @@ export const webhookEvents = sqliteTable(
     payloadHash: text("payload_hash").notNull(),
     status: text("status").notNull(),
     createdAt: text("created_at").notNull(),
+    signatureVerifiedAt: text("signature_verified_at"),
     processedAt: text("processed_at"),
   },
   (table) => [

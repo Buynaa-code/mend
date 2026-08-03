@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { LandingApp } from "./LandingApp";
 
 export default function Home() {
-  redirect("/create");
+  return <LandingApp />;
 }

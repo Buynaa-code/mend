@@ -18,5 +18,11 @@ declare namespace Cloudflare {
     QPAY_DISTRICT_CODE?: string;
     QPAY_TAX_TYPE?: string;
     QPAY_INVOICE_OPTIONS_JSON?: string;
+    YOUTUBE_API_KEY?: string;
+    WIRE_API_BASE?: string;
+    WIRE_API_KEY?: string;
+    WIRE_WEBHOOK_SECRET?: string;
+    WIRE_SETUP_TOKEN?: string;
+    PAYMENT_DESCRIPTION?: string;
   }
 }

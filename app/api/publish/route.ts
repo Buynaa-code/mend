@@ -1,4 +1,4 @@
-import { getDb } from "../../../db";
+import { ensureSchema, getDb } from "../../../db";
 import { type GreetingDraft } from "../../lib/greeting";
 import { cleanDraft, validateDraft } from "../../lib/server/draft";
 import {
@@ -23,6 +23,7 @@ type ExistingPublication = {
   id: string;
   public_slug: string;
   recipient_name: string;
+  recipient_gender: string;
 };
 
 function createSlug() {
@@ -31,6 +32,7 @@ function createSlug() {
 
 export async function POST(request: Request) {
   try {
+    await ensureSchema();
     const payload = (await request.json()) as { paymentId?: string };
     const paymentId = String(payload.paymentId ?? "").trim();
     if (!paymentId) return jsonError("Захиалгын ID дутуу байна.", 400);
@@ -44,7 +46,7 @@ export async function POST(request: Request) {
     const db = await getDb();
     const existing = await db
       .prepare(`
-        SELECT g.id, g.public_slug, g.recipient_name
+        SELECT g.id, g.public_slug, g.recipient_name, g.recipient_gender
         FROM greeting_private gp
         JOIN greetings g ON g.id = gp.greeting_id
         WHERE gp.payment_id = ?
@@ -58,6 +60,7 @@ export async function POST(request: Request) {
         id: existing.id,
         publicSlug: existing.public_slug,
         recipientName: existing.recipient_name,
+        recipientGender: existing.recipient_gender === "male" ? "male" : "female",
         ownerToken,
       });
     }
@@ -104,11 +107,11 @@ export async function POST(request: Request) {
           .prepare(`
             INSERT INTO greetings (
               id, owner_token_hash, access_code_id, public_slug, recipient_name,
-              sender_name, template, headline, message, surprise_message,
+              recipient_gender, sender_name, template, headline, message, surprise_message,
               music_url, music_name, photos_json, birthday_date, opened_at,
               view_count, created_at, updated_at
             )
-            SELECT ?, ?, ac.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?
+            SELECT ?, ?, ac.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?
             FROM access_codes ac
             WHERE ac.id = ? AND ac.payment_id = ?
               AND ac.status IN ('issued', 'valid') AND ac.used_at IS NULL
@@ -119,6 +122,7 @@ export async function POST(request: Request) {
             ownerTokenHash,
             publicSlug,
             draft.recipientName,
+            draft.recipientGender,
             draft.senderName,
             draft.template,
             headline,
@@ -195,7 +199,7 @@ export async function POST(request: Request) {
     } catch {
       const raced = await db
         .prepare(`
-          SELECT g.id, g.public_slug, g.recipient_name
+          SELECT g.id, g.public_slug, g.recipient_name, g.recipient_gender
           FROM greeting_private gp
           JOIN greetings g ON g.id = gp.greeting_id
           WHERE gp.payment_id = ?
@@ -208,6 +212,7 @@ export async function POST(request: Request) {
           id: raced.id,
           publicSlug: raced.public_slug,
           recipientName: raced.recipient_name,
+          recipientGender: raced.recipient_gender === "male" ? "male" : "female",
           ownerToken,
         });
       }
@@ -219,6 +224,7 @@ export async function POST(request: Request) {
         id: greetingId,
         publicSlug,
         recipientName: draft.recipientName,
+        recipientGender: draft.recipientGender,
         ownerToken,
       },
       { status: 201 },
@@ -235,4 +241,3 @@ export async function POST(request: Request) {
     return jsonError(message, 500);
   }
 }
-

@@ -17,6 +17,11 @@ import {
 } from "../../lib/server/payments";
 import { createProviderInvoice, assertProviderConfiguration } from "../../lib/server/qpay";
 import {
+  assertWireConfiguration,
+  createWireInvoice,
+  isWireMode,
+} from "../../lib/server/wire";
+import {
   enforceRateLimit,
   hashValue,
   randomToken,
@@ -28,7 +33,13 @@ export async function POST(request: Request) {
     await ensureSchema();
     await enforceRateLimit(request, "checkout", 5, 15 * 60_000);
     await requireAppSecret();
-    await assertProviderConfiguration();
+    const bindingsForMode = await getAppBindings();
+    const providerModeValue = bindingsForMode.PAYMENT_PROVIDER_MODE;
+    if (isWireMode(providerModeValue)) {
+      await assertWireConfiguration();
+    } else {
+      await assertProviderConfiguration();
+    }
 
     const payload = (await request.json()) as {
       draft?: GreetingDraft;
@@ -40,11 +51,11 @@ export async function POST(request: Request) {
     if (validationError) return jsonError(validationError, 400);
 
     const email = cleanEmail(payload.email ?? "");
-    if (!isValidEmail(email)) {
-      return jsonError("Сэргээх боломжтой зөв email оруулна уу.", 400);
+    if (email && !isValidEmail(email)) {
+      return jsonError("Email формат буруу байна.", 400);
     }
 
-    const bindings = await getAppBindings();
+    const bindings = bindingsForMode;
     const ttlMinutes = Math.max(
       5,
       Math.min(120, Number(bindings.PAYMENT_TTL_MINUTES ?? "15") || 15),
@@ -56,8 +67,13 @@ export async function POST(request: Request) {
     const orderId = createOrderId();
     const clientSecret = randomToken(32);
     const clientSecretHash = await hashValue(clientSecret);
-    const mode =
-      bindings.PAYMENT_PROVIDER_MODE?.toLowerCase() === "demo" ? "demo" : "qpay";
+    const modeLower = bindings.PAYMENT_PROVIDER_MODE?.toLowerCase();
+    const mode: "demo" | "qpay" | "wire" =
+      modeLower === "demo"
+        ? "demo"
+        : modeLower === "wire"
+        ? "wire"
+        : "qpay";
     const configuredOrigin = bindings.PUBLIC_APP_URL?.trim();
     const callbackOrigin = configuredOrigin || new URL(request.url).origin;
 
@@ -94,13 +110,20 @@ export async function POST(request: Request) {
     ]);
 
     try {
-      const invoice = await createProviderInvoice({
-        paymentId,
-        orderId,
-        recipientCode: draftId.replaceAll("-", "").slice(0, 24),
-        email,
-        callbackOrigin,
-      });
+      const invoice =
+        mode === "wire"
+          ? await createWireInvoice({
+              paymentId,
+              orderId,
+              email,
+            })
+          : await createProviderInvoice({
+              paymentId,
+              orderId,
+              recipientCode: draftId.replaceAll("-", "").slice(0, 24),
+              email,
+              callbackOrigin,
+            });
       await db
         .prepare(`
           UPDATE payments

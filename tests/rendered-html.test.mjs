@@ -3,13 +3,12 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const mascotVariants = [
-  "mend-giraffe.png",
-  "mend-giraffe-pout.png",
-  "mend-giraffe-celebrate.png",
-  "mend-giraffe-camera.png",
-  "mend-giraffe-letter.png",
-  "mend-giraffe-music.png",
-  "mend-giraffe-cake.png",
+  ...["", "-pout", "-celebrate", "-camera", "-letter", "-music", "-cake"].map(
+    (pose) => `mend-fawn${pose}.png`,
+  ),
+  ...["", "-pout", "-celebrate", "-camera", "-letter", "-music", "-cake"].map(
+    (pose) => `mend-tiger${pose}.png`,
+  ),
 ];
 
 async function render(path = "/") {
@@ -84,15 +83,20 @@ test("creator requires checkout instead of direct publishing", async () => {
     "utf8",
   );
   assert.match(source, /6,900₮/);
-  assert.match(source, /Загварлах, файл нэмэх, preview харах нь үнэгүй/);
+  assert.match(source, /Encrypted checkout/);
   assert.match(source, /fetch\("\/api\/checkout"/);
   assert.doesNotMatch(source, />Тусгай линк үүсгэх</);
 });
 
-test("root redirects to creator route", async () => {
+test("root renders landing page with template gallery", async () => {
   const response = await render("/");
-  assert.ok([301, 302, 307, 308].includes(response.status));
-  assert.equal(new URL(response.headers.get("location"), "http://localhost").pathname, "/create");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /landing-root/);
+  assert.match(html, /landing-tmpl-card/);
+  assert.match(html, /8 mood, 8 өнгө/);
+  assert.match(html, /6,900₮/);
+  assert.match(html, /href="\/create\?template=cute"/);
 });
 
 test("ships every transparent mascot pose", async () => {
@@ -110,4 +114,14 @@ test("ships every transparent mascot pose", async () => {
       `${filename} must include an alpha channel`,
     );
   }
+});
+
+test("selects the tiger mascot for male recipients", async () => {
+  const source = await readFile(
+    new URL("../app/BirthdayApp.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /recipientGender === "male"/);
+  assert.match(source, /mend-tiger-celebrate\.png/);
+  assert.match(source, /onClick=\{\(\) => update\(\{ recipientGender: "male" \}\)\}/);
 });

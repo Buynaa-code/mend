@@ -31,6 +31,7 @@ type Publication = {
   id: string;
   publicSlug: string;
   recipientName: string;
+  recipientGender: "female" | "male";
   ownerToken: string;
 };
 
@@ -286,7 +287,14 @@ export function PaymentApp() {
           </section>
         ) : payment?.publication ? (
           <section className="payment-success">
-            <img src="/assets/mend-giraffe-celebrate.png" alt="" />
+            <img
+              src={
+                payment.publication.recipientGender === "male"
+                  ? "/assets/mend-tiger-celebrate.png"
+                  : "/assets/mend-fawn-celebrate.png"
+              }
+              alt=""
+            />
             <CheckCircle2 size={31} />
             <small>ТӨЛБӨР БАТАЛГААЖСАН</small>
             <h2>Мэндчилгээ нийтлэгдлээ!</h2>
@@ -305,9 +313,10 @@ export function PaymentApp() {
             </div>
             {payment.accessCode && (
               <div className="access-code-line">
-                <TicketCheck size={18} />
+                <TicketCheck size={22} />
                 <span>
-                  Нэг удаагийн код <strong>{payment.accessCode}</strong>
+                  Нэг удаагийн код
+                  <strong>{payment.accessCode}</strong>
                 </span>
                 <button
                   type="button"
@@ -317,7 +326,7 @@ export function PaymentApp() {
                     navigator.clipboard?.writeText(payment.accessCode)
                   }
                 >
-                  <Copy size={15} />
+                  <Copy size={16} />
                 </button>
               </div>
             )}
@@ -412,7 +421,7 @@ export function PaymentApp() {
             </section>
 
             <aside className="payment-summary">
-              <img src="/assets/mend-giraffe-cake.png" alt="" />
+              <img src="/assets/mend-fawn-cake.png" alt="" />
               <h2>Нэг удаагийн нийтлэх эрх</h2>
               <ul>
                 <li>

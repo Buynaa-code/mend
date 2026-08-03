@@ -19,6 +19,12 @@ type AppBindings = {
   QPAY_DISTRICT_CODE?: string;
   QPAY_TAX_TYPE?: string;
   QPAY_INVOICE_OPTIONS_JSON?: string;
+  YOUTUBE_API_KEY?: string;
+  WIRE_API_BASE?: string;
+  WIRE_API_KEY?: string;
+  WIRE_WEBHOOK_SECRET?: string;
+  WIRE_SETUP_TOKEN?: string;
+  PAYMENT_DESCRIPTION?: string;
 };
 
 let bindingsPromise: Promise<AppBindings> | null = null;
@@ -61,6 +67,7 @@ async function initializeSchema() {
         owner_token_hash TEXT NOT NULL UNIQUE,
         public_slug TEXT NOT NULL UNIQUE,
         recipient_name TEXT NOT NULL,
+        recipient_gender TEXT NOT NULL DEFAULT 'female',
         sender_name TEXT NOT NULL,
         template TEXT NOT NULL,
         headline TEXT NOT NULL,
@@ -166,6 +173,7 @@ async function initializeSchema() {
         payload_hash TEXT NOT NULL,
         status TEXT NOT NULL,
         created_at TEXT NOT NULL,
+        signature_verified_at TEXT,
         processed_at TEXT,
         UNIQUE (provider, event_id)
       )
@@ -207,9 +215,41 @@ async function initializeSchema() {
       if (!/duplicate column/i.test(message)) throw caught;
     }
   }
+  if (!columns.results.some((column) => column.name === "recipient_gender")) {
+    try {
+      await db
+        .prepare(
+          "ALTER TABLE greetings ADD COLUMN recipient_gender TEXT NOT NULL DEFAULT 'female'",
+        )
+        .run();
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "";
+      if (!/duplicate column/i.test(message)) throw caught;
+    }
+  }
   await db
     .prepare(
       "CREATE UNIQUE INDEX IF NOT EXISTS greetings_access_code_id_unique ON greetings(access_code_id)",
     )
     .run();
+
+  const webhookColumns = await db
+    .prepare("PRAGMA table_info(webhook_events)")
+    .all<{ name: string }>();
+  if (
+    !webhookColumns.results.some(
+      (column) => column.name === "signature_verified_at",
+    )
+  ) {
+    try {
+      await db
+        .prepare(
+          "ALTER TABLE webhook_events ADD COLUMN signature_verified_at TEXT",
+        )
+        .run();
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "";
+      if (!/duplicate column/i.test(message)) throw caught;
+    }
+  }
 }

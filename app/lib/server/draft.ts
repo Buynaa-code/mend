@@ -1,6 +1,7 @@
 import {
   type GreetingDraft,
   type TemplateId,
+  parseYoutubeId,
   sanitizePlainText,
   templates,
 } from "../greeting";
@@ -21,10 +22,17 @@ function isMediaUrl(value: string) {
   }
 }
 
+function isAllowedMusicUrl(value: string) {
+  if (!value) return true;
+  if (parseYoutubeId(value)) return true;
+  return isMediaUrl(value);
+}
+
 export function cleanDraft(value: GreetingDraft): GreetingDraft {
   return {
     currentStep: 3,
     recipientName: sanitizePlainText(value.recipientName ?? "", 40).trim(),
+    recipientGender: value.recipientGender === "male" ? "male" : "female",
     senderName: sanitizePlainText(value.senderName ?? "", 40).trim(),
     template: (templateIds.has(value.template) ? value.template : "cute") as TemplateId,
     headline: sanitizePlainText(value.headline ?? "", 90).trim(),
@@ -35,7 +43,7 @@ export function cleanDraft(value: GreetingDraft): GreetingDraft {
     photos: Array.isArray(value.photos)
       ? value.photos
           .filter((photo): photo is string => typeof photo === "string")
-          .slice(0, 6)
+          .slice(0, 30)
       : [],
     birthdayDate: String(value.birthdayDate ?? "").slice(0, 10),
   };
@@ -51,7 +59,7 @@ export function validateDraft(draft: GreetingDraft) {
   if (!draft.photos.length || draft.photos.some((photo) => !isMediaUrl(photo))) {
     return "Зургаа бүрэн байршуулсны дараа линкээ идэвхжүүлнэ үү.";
   }
-  if (!isMediaUrl(draft.musicUrl)) {
+  if (!isAllowedMusicUrl(draft.musicUrl)) {
     return "Дууны файл буруу байна.";
   }
   return "";
@@ -64,4 +72,3 @@ export function cleanEmail(value: string) {
 export function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
 }
-

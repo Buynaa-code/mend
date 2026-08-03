@@ -14,15 +14,19 @@ import {
   Gift,
   Heart,
   ImagePlus,
+  Landmark,
+  LoaderCircle,
   Mail,
   MessageCircle,
   Music2,
   PartyPopper,
   Pause,
   Play,
+  QrCode,
   RefreshCw,
   RotateCcw,
   Send,
+  ShieldCheck,
   Sparkles,
   Trash2,
   Upload,
@@ -42,10 +46,13 @@ import {
   createDefaultDraft,
   type DashboardGreeting,
   type GreetingDraft,
+  type PreviewScene,
   type PublicGreeting,
+  type RecipientGender,
   type ReactionType,
   getTemplate,
   isDraftReady,
+  parseYoutubeId,
   sanitizePlainText,
   templates,
 } from "./lib/greeting";
@@ -56,6 +63,34 @@ type OwnerEntry = {
   slug: string;
   recipientName: string;
 };
+
+type BolzooAudioOptions = {
+  videoId: string;
+  volume?: number;
+  hostElId?: string;
+  buttonEl?: HTMLElement | null;
+  iconEl?: HTMLElement | null;
+  textEl?: HTMLElement | null;
+  onFail?: () => void;
+  deferPlayerCreation?: boolean;
+};
+
+type BolzooAudioController = {
+  setVideoId(id: string): void;
+  setMuted(muted: boolean): void;
+  start(): void;
+  isReady(): boolean;
+  hasFailed(): boolean;
+  destroy(): void;
+};
+
+declare global {
+  interface Window {
+    BolzooAudio?: {
+      init(opts: BolzooAudioOptions): BolzooAudioController;
+    };
+  }
+}
 
 type RecipientScreen =
   | "envelope"
@@ -76,27 +111,73 @@ const fallbackPhotos = [
   "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=900&q=80",
 ];
 
-const mascotSources = {
-  intro: "/assets/mend-giraffe.png",
-  pout: "/assets/mend-giraffe-pout.png",
-  celebrate: "/assets/mend-giraffe-celebrate.png",
-  camera: "/assets/mend-giraffe-camera.png",
-  letter: "/assets/mend-giraffe-letter.png",
-  music: "/assets/mend-giraffe-music.png",
-  cake: "/assets/mend-giraffe-cake.png",
-} as const;
+type MascotVariant =
+  | "intro"
+  | "pout"
+  | "celebrate"
+  | "camera"
+  | "letter"
+  | "music"
+  | "cake";
+
+const mascotSources: Record<
+  RecipientGender,
+  Record<MascotVariant, string>
+> = {
+  female: {
+    intro: "/assets/mend-fawn.png",
+    pout: "/assets/mend-fawn-pout.png",
+    celebrate: "/assets/mend-fawn-celebrate.png",
+    camera: "/assets/mend-fawn-camera.png",
+    letter: "/assets/mend-fawn-letter.png",
+    music: "/assets/mend-fawn-music.png",
+    cake: "/assets/mend-fawn-cake.png",
+  },
+  male: {
+    intro: "/assets/mend-tiger.png",
+    pout: "/assets/mend-tiger-pout.png",
+    celebrate: "/assets/mend-tiger-celebrate.png",
+    camera: "/assets/mend-tiger-camera.png",
+    letter: "/assets/mend-tiger-letter.png",
+    music: "/assets/mend-tiger-music.png",
+    cake: "/assets/mend-tiger-cake.png",
+  },
+};
+
+const templateMascotVariants: Record<
+  GreetingDraft["template"],
+  MascotVariant
+> = {
+  cute: "cake",
+  elegant: "letter",
+  party: "celebrate",
+  collage: "camera",
+  dreamy: "music",
+  retro: "intro",
+  minimal: "pout",
+  boho: "music",
+};
+
+function mascotSource(
+  gender: RecipientGender | undefined,
+  variant: MascotVariant,
+) {
+  return mascotSources[gender === "male" ? "male" : "female"][variant];
+}
 
 function Mascot({
   variant,
+  gender = "female",
   className = "",
 }: {
-  variant: keyof typeof mascotSources;
+  variant: MascotVariant;
+  gender?: RecipientGender;
   className?: string;
 }) {
   return (
     <img
       className={`mascot ${className}`}
-      src={mascotSources[variant]}
+      src={mascotSource(gender, variant)}
       alt=""
       draggable={false}
     />
@@ -106,13 +187,19 @@ function Mascot({
 function IconButton({
   label,
   children,
+  className = "",
   ...props
 }: {
   label: string;
   children: ReactNode;
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button className="icon-button" aria-label={label} title={label} {...props}>
+    <button
+      className={`icon-button ${className}`.trim()}
+      aria-label={label}
+      title={label}
+      {...props}
+    >
       {children}
     </button>
   );
@@ -161,53 +248,447 @@ function themeStyle(templateId: GreetingDraft["template"]): CSSProperties {
   } as CSSProperties;
 }
 
-function CardPreview({
+export function CardPreview({
   draft,
   compact = false,
+  scene = "cover",
 }: {
   draft: GreetingDraft | PublicGreeting;
   compact?: boolean;
+  scene?: PreviewScene;
 }) {
   const photos = draft.photos.length ? draft.photos : fallbackPhotos;
   const isCollage = draft.template === "collage";
+  const wrapperClass = `card-preview template-${draft.template} scene-${scene} ${compact ? "compact" : ""}`;
+
   return (
-    <div
-      className={`card-preview template-${draft.template} ${compact ? "compact" : ""}`}
-      style={themeStyle(draft.template)}
-    >
+    <div className={wrapperClass} style={themeStyle(draft.template)}>
       <span className="paper-star star-a">★</span>
       <span className="paper-star star-b">★</span>
-      <div className={`preview-photos ${isCollage ? "collage" : ""}`}>
-        {photos.slice(0, isCollage ? 4 : 1).map((photo, index) => (
-          <img src={photo} alt="" key={`${photo}-${index}`} />
-        ))}
-      </div>
-      <div className="preview-copy">
-        <small>happy birthday</small>
-        <h2>
-          {draft.headline ||
-            `Төрсөн өдрийн мэнд, ${draft.recipientName || "чамдаа"}!`}
-        </h2>
-        <p>{draft.senderName ? `${draft.senderName}-ээс` : "Чиний дотны хүнээс"}</p>
-      </div>
-      <Mascot variant={draft.template === "party" ? "celebrate" : "cake"} />
+
+      {scene === "cover" && (
+        <>
+          <div className={`preview-photos ${isCollage ? "collage" : ""}`}>
+            {photos.slice(0, isCollage ? 4 : 1).map((photo, index) => (
+              <img src={photo} alt="" key={`${photo}-${index}`} />
+            ))}
+          </div>
+          <div className="preview-copy">
+            <small>happy birthday</small>
+            <h2>
+              {draft.headline ||
+                `Төрсөн өдрийн мэнд, ${draft.recipientName || "чамдаа"}!`}
+            </h2>
+            <p>
+              {draft.senderName
+                ? `${draft.senderName}-ээс`
+                : "Чиний дотны хүнээс"}
+            </p>
+          </div>
+          <Mascot
+            gender={draft.recipientGender}
+            variant={draft.template === "party" ? "celebrate" : "cake"}
+          />
+        </>
+      )}
+
+      {scene === "countdown" && (
+        <div className="preview-scene-body">
+          <small>Төрсөн өдөр хүртэл</small>
+          <h2>
+            {draft.recipientName
+              ? `${draft.recipientName}-ийн өдөр`
+              : "Уулзах өдөр"}
+          </h2>
+          {draft.birthdayDate ? (
+            <Countdown birthdayDate={draft.birthdayDate} />
+          ) : (
+            <p className="preview-hollow">Огноо хараахан оруулаагүй</p>
+          )}
+          <Mascot gender={draft.recipientGender} variant="celebrate" />
+        </div>
+      )}
+
+      {scene === "letter" && (
+        <div className="preview-scene-body letter">
+          <small>Захидал</small>
+          <h2>
+            {draft.senderName
+              ? `${draft.senderName}-с ${draft.recipientName || "чамдаа"}`
+              : "Захидал"}
+          </h2>
+          {draft.message ? (
+            <p className="preview-letter">{draft.message}</p>
+          ) : (
+            <p className="preview-hollow">Мэндчилгээ хараахан бичээгүй</p>
+          )}
+          <Mascot gender={draft.recipientGender} variant="letter" />
+        </div>
+      )}
+
+      {scene === "music" && (
+        <div className="preview-scene-body">
+          <small>Аялгуу</small>
+          <h2>{draft.musicName || "Дуу"}</h2>
+          {draft.musicUrl ? (
+            <p className="preview-music-source">
+              <Music2 size={14} />
+              {parseYoutubeId(draft.musicUrl) ? "YouTube-ээс" : "Файл"}
+            </p>
+          ) : (
+            <p className="preview-hollow">Дуу оруулаагүй — чимээгүй хувилбар</p>
+          )}
+          <Mascot gender={draft.recipientGender} variant="music" />
+        </div>
+      )}
+
+      {scene === "finale" && (
+        <div className="preview-scene-body">
+          <small>Төгсгөл</small>
+          <h2>
+            {draft.surpriseMessage ||
+              "Хүлээж байсан бүх сайхан зүйл чинь энэ жил чамайг олоосой."}
+          </h2>
+          <Mascot gender={draft.recipientGender} variant="celebrate" />
+        </div>
+      )}
     </div>
   );
 }
 
+type YoutubeSearchItem = {
+  videoId: string;
+  title: string;
+  channelTitle: string;
+  thumbnail: string;
+};
+
+const ytCacheKey = "mend:youtube_search_cache:v1";
+const ytCacheTtlMs = 24 * 60 * 60 * 1000;
+const ytCacheMax = 30;
+
+type YtCacheEntry = { at: number; items: YoutubeSearchItem[] };
+type YtCache = Record<string, YtCacheEntry>;
+
+function readYoutubeCache(): YtCache {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(window.localStorage.getItem(ytCacheKey) || "{}") as YtCache;
+  } catch {
+    return {};
+  }
+}
+
+function getCachedYoutube(query: string): YoutubeSearchItem[] | null {
+  const cache = readYoutubeCache();
+  const hit = cache[query.toLowerCase()];
+  if (!hit || Date.now() - hit.at > ytCacheTtlMs) return null;
+  return hit.items || null;
+}
+
+function setCachedYoutube(query: string, items: YoutubeSearchItem[]) {
+  if (typeof window === "undefined") return;
+  const cache = readYoutubeCache();
+  cache[query.toLowerCase()] = { at: Date.now(), items };
+  const keys = Object.keys(cache).sort((a, b) => cache[b].at - cache[a].at);
+  for (const key of keys.slice(ytCacheMax)) delete cache[key];
+  try {
+    window.localStorage.setItem(ytCacheKey, JSON.stringify(cache));
+  } catch {
+    /* localStorage бүрхэж болохгүй бол чимээгүй */
+  }
+}
+
+function daysUntilBirthday(dateString: string): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return null;
+  const target = new Date(`${dateString}T00:00:00`).getTime();
+  if (!Number.isFinite(target)) return null;
+  const now = new Date();
+  const todayMidnight = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+  return Math.round((target - todayMidnight) / 86_400_000);
+}
+
+const monWeekdays = ["Да", "Мя", "Лх", "Пү", "Ба", "Бя", "Ня"];
+
+function isoDate(y: number, m: number, d: number) {
+  return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+function formatMongolianDate(iso: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${y} · ${m} сарын ${d}`;
+}
+
+function DatePicker({
+  value,
+  onChange,
+  placeholder = "Огноо сонгох",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [viewMonth, setViewMonth] = useState<Date>(() => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [y, m] = value.split("-").map(Number);
+      return new Date(y, m - 1, 1);
+    }
+    return new Date();
+  });
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (event: MouseEvent) => {
+      if (!wrapperRef.current) return;
+      if (!wrapperRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  function togglePopover() {
+    setOpen((current) => {
+      const next = !current;
+      if (next && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        const [y, m] = value.split("-").map(Number);
+        setViewMonth(new Date(y, m - 1, 1));
+      }
+      return next;
+    });
+  }
+
+  const year = viewMonth.getFullYear();
+  const month = viewMonth.getMonth();
+  const firstOfMonth = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startWeekday = (firstOfMonth.getDay() + 6) % 7;
+
+  const cells: Array<{ day: number; iso: string } | null> = [];
+  for (let index = 0; index < startWeekday; index += 1) cells.push(null);
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    cells.push({ day, iso: isoDate(year, month, day) });
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const today = new Date();
+  const todayIso = isoDate(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+  const displayText = value ? formatMongolianDate(value) : placeholder;
+
+  return (
+    <div className="date-picker" ref={wrapperRef}>
+      <button
+        type="button"
+        className={`date-picker-trigger ${value ? "has-value" : ""}`}
+        onClick={togglePopover}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
+        <CalendarDays size={19} />
+        <span>{displayText}</span>
+      </button>
+      {open && (
+        <div className="date-picker-popover" role="dialog" aria-modal="false">
+          <header>
+            <button
+              type="button"
+              aria-label="Өмнөх сар"
+              onClick={() => setViewMonth(new Date(year, month - 1, 1))}
+            >
+              <ArrowLeft size={15} />
+            </button>
+            <div className="date-picker-title">
+              <strong>{month + 1} сар</strong>
+              <select
+                aria-label="Он"
+                value={year}
+                onChange={(event) =>
+                  setViewMonth(new Date(Number(event.target.value), month, 1))
+                }
+              >
+                {(() => {
+                  const options: number[] = [];
+                  const start = today.getFullYear() - 100;
+                  const end = today.getFullYear() + 5;
+                  for (let y = end; y >= start; y -= 1) options.push(y);
+                  return options.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ));
+                })()}
+              </select>
+            </div>
+            <button
+              type="button"
+              aria-label="Дараах сар"
+              onClick={() => setViewMonth(new Date(year, month + 1, 1))}
+            >
+              <ArrowRight size={15} />
+            </button>
+          </header>
+          <div className="date-picker-weekdays">
+            {monWeekdays.map((label) => (
+              <span key={label}>{label}</span>
+            ))}
+          </div>
+          <div className="date-picker-grid">
+            {cells.map((cell, index) => {
+              if (!cell) return <span key={`empty-${index}`} />;
+              const isSelected = cell.iso === value;
+              const isToday = cell.iso === todayIso;
+              return (
+                <button
+                  type="button"
+                  key={cell.iso}
+                  className={[
+                    isSelected ? "selected" : "",
+                    isToday ? "today" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={() => {
+                    onChange(cell.iso);
+                    setOpen(false);
+                  }}
+                >
+                  {cell.day}
+                </button>
+              );
+            })}
+          </div>
+          <footer>
+            <button
+              type="button"
+              onClick={() => {
+                setViewMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+                onChange(todayIso);
+                setOpen(false);
+              }}
+            >
+              Өнөөдөр
+            </button>
+            {value && (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange("");
+                  setOpen(false);
+                }}
+              >
+                Арилгах
+              </button>
+            )}
+          </footer>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
+const IMAGE_TARGET_BYTES = 2 * 1024 * 1024;
+const IMAGE_MAX_DIMENSION = 1800;
+const IMAGE_SOURCE_HARD_CAP = 40 * 1024 * 1024;
+const MAX_PHOTOS = 30;
+
+async function safeJson<T>(response: Response): Promise<{
+  data: T | null;
+  text: string;
+}> {
+  const text = await response.text();
+  try {
+    return { data: text ? (JSON.parse(text) as T) : null, text };
+  } catch {
+    return { data: null, text };
+  }
+}
+
+async function compressImage(file: File): Promise<File> {
+  if (typeof document === "undefined") return file;
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    return file;
+  }
+  try {
+    const scale = Math.min(
+      1,
+      IMAGE_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height),
+    );
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+
+    const qualities = [0.85, 0.75, 0.65, 0.55];
+    for (const quality of qualities) {
+      const blob: Blob | null = await new Promise((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", quality),
+      );
+      if (!blob) continue;
+      if (blob.size <= IMAGE_TARGET_BYTES || quality === qualities.at(-1)) {
+        return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", {
+          type: "image/jpeg",
+          lastModified: Date.now(),
+        });
+      }
+    }
+    return file;
+  } finally {
+    bitmap.close();
+  }
+}
+
 async function uploadFile(file: File) {
+  const isImage = file.type.startsWith("image/");
+  if (isImage && file.size > IMAGE_SOURCE_HARD_CAP) {
+    throw new Error("Зураг хэт том байна (40MB+). Багасгаад оруулна уу.");
+  }
+  if (!isImage && file.size > MAX_AUDIO_BYTES) {
+    throw new Error(
+      "Дуу 15MB-аас ихгүй байх ёстой. Илүү том дуу бол YouTube линк ашиглана уу.",
+    );
+  }
+  const payload = isImage ? await compressImage(file) : file;
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", payload);
   const response = await fetch("/api/media", { method: "POST", body: form });
-  const result = (await response.json()) as {
+  const { data, text } = await safeJson<{
     url?: string;
     name?: string;
     error?: string;
-  };
-  if (!response.ok || !result.url) {
-    throw new Error(result.error || "Файл байршуулж чадсангүй.");
+  }>(response);
+  if (!response.ok || !data?.url) {
+    const fallback =
+      response.status === 413
+        ? "Файл хэт том байна. Өөр зураг сонгоно уу."
+        : text.slice(0, 200) || "Файл байршуулж чадсангүй.";
+    throw new Error(data?.error || fallback);
   }
-  return { url: result.url, name: result.name || file.name };
+  return { url: data.url, name: data.name || file.name };
 }
 
 export function CreateGreetingApp() {
@@ -216,7 +697,16 @@ export function CreateGreetingApp() {
   const [uploading, setUploading] = useState<"images" | "music" | "">("");
   const [error, setError] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
-  const [ownerEmail, setOwnerEmail] = useState("");
+  const [youtubeInput, setYoutubeInput] = useState("");
+  const [youtubeName, setYoutubeName] = useState("");
+  const [ytQuery, setYtQuery] = useState("");
+  const [ytResults, setYtResults] = useState<YoutubeSearchItem[]>([]);
+  const [ytSearching, setYtSearching] = useState(false);
+  const [ytSearchError, setYtSearchError] = useState("");
+  const [musicTab, setMusicTab] = useState<"youtube" | "file" | "link">(
+    "youtube",
+  );
+  const [previewScene, setPreviewScene] = useState<PreviewScene>("cover");
   const photoRef = useRef<HTMLInputElement>(null);
   const musicRef = useRef<HTMLInputElement>(null);
   const step = Math.max(0, Math.min(3, draft.currentStep));
@@ -224,14 +714,32 @@ export function CreateGreetingApp() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const saved = window.localStorage.getItem(draftKey);
+      let next: GreetingDraft = createDefaultDraft();
       if (saved) {
         try {
-          setDraft({ ...createDefaultDraft(), ...JSON.parse(saved) });
+          next = { ...createDefaultDraft(), ...JSON.parse(saved) };
         } catch {
           window.localStorage.removeItem(draftKey);
         }
       }
-      setOwnerEmail(window.localStorage.getItem("mend-owner-email-v1") || "");
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const urlTemplate = params.get("template");
+        const validIds = new Set(templates.map((template) => template.id));
+        if (urlTemplate && validIds.has(urlTemplate as GreetingDraft["template"])) {
+          next = {
+            ...next,
+            template: urlTemplate as GreetingDraft["template"],
+            currentStep: Math.max(next.currentStep, 1),
+          };
+          const url = new URL(window.location.href);
+          url.searchParams.delete("template");
+          window.history.replaceState({}, "", url.toString());
+        }
+      } catch {
+        /* URL parse алдаа — үл хамаарна */
+      }
+      setDraft(next);
       setHydrated(true);
     }, 0);
     return () => window.clearTimeout(timer);
@@ -256,7 +764,7 @@ export function CreateGreetingApp() {
   async function handlePhotos(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []).slice(
       0,
-      6 - draft.photos.length,
+      MAX_PHOTOS - draft.photos.length,
     );
     event.target.value = "";
     if (!files.length) return;
@@ -288,13 +796,84 @@ export function CreateGreetingApp() {
     }
   }
 
+  function handleYoutubeAdd() {
+    const id = parseYoutubeId(youtubeInput);
+    if (!id) {
+      setError("YouTube линк буруу байна. Жишээ: https://youtu.be/dQw4w9WgXcQ");
+      return;
+    }
+    const name = sanitizePlainText(youtubeName, 100).trim() || "YouTube аялгуу";
+    update({
+      musicUrl: `https://www.youtube.com/watch?v=${id}`,
+      musicName: name,
+    });
+    setYoutubeInput("");
+    setYoutubeName("");
+  }
+
+  function handleMusicClear() {
+    update({ musicUrl: "", musicName: "" });
+    setYoutubeInput("");
+    setYoutubeName("");
+    setYtResults([]);
+    setYtQuery("");
+    setYtSearchError("");
+    setMusicTab("youtube");
+  }
+
+  async function runYoutubeSearch() {
+    const query = ytQuery.trim();
+    if (query.length < 2) {
+      setYtSearchError("Хайх үг хамгийн багадаа 2 тэмдэгт.");
+      return;
+    }
+    setYtSearchError("");
+    const cached = getCachedYoutube(query);
+    if (cached) {
+      setYtResults(cached);
+      return;
+    }
+    setYtSearching(true);
+    try {
+      const response = await fetch(
+        `/api/youtube-search?q=${encodeURIComponent(query)}`,
+      );
+      const data = (await response.json()) as {
+        items?: YoutubeSearchItem[];
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.error || "YouTube хайлт амжилтгүй.");
+      }
+      const items = data.items || [];
+      setCachedYoutube(query, items);
+      setYtResults(items);
+      if (!items.length) {
+        setYtSearchError("Илэрц олдсонгүй. Өөр үг оролдоно уу.");
+      }
+    } catch (caught) {
+      setYtSearchError(
+        caught instanceof Error ? caught.message : "Хайлт амжилтгүй.",
+      );
+      setYtResults([]);
+    } finally {
+      setYtSearching(false);
+    }
+  }
+
+  function selectYoutubeResult(item: YoutubeSearchItem) {
+    update({
+      musicUrl: `https://www.youtube.com/watch?v=${item.videoId}`,
+      musicName: sanitizePlainText(item.title, 100),
+    });
+    setYtResults([]);
+    setYtQuery("");
+    setYtSearchError("");
+  }
+
   async function startCheckout() {
     if (!isDraftReady(draft)) {
       setError("Нэр, огноо, мэндчилгээ, дор хаяж нэг зургаа бүрэн оруулна уу.");
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(ownerEmail.trim())) {
-      setError("Захиалга сэргээх боломжтой зөв email оруулна уу.");
       return;
     }
     setCheckingOut(true);
@@ -303,7 +882,7 @@ export function CreateGreetingApp() {
       const response = await fetch("/api/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ draft, email: ownerEmail.trim() }),
+        body: JSON.stringify({ draft }),
       });
       const result = (await response.json()) as {
         paymentId?: string;
@@ -320,7 +899,6 @@ export function CreateGreetingApp() {
         throw new Error(result.error || "Төлбөрийн нэхэмжлэх үүсгэж чадсангүй.");
       }
 
-      window.localStorage.setItem("mend-owner-email-v1", ownerEmail.trim());
       window.localStorage.setItem(
         `mend-payment-v1:${result.paymentId}`,
         JSON.stringify({
@@ -345,19 +923,30 @@ export function CreateGreetingApp() {
     isDraftReady(draft),
   ][step];
 
+  const activeTemplate = getTemplate(draft.template);
+
   return (
     <AppShell current="create">
-      <main className="creator-layout">
+      <main
+        className={`creator-layout template-${draft.template}`}
+        style={themeStyle(draft.template)}
+      >
         <aside className="creator-steps">
           <div className="step-mascot">
-            <Mascot
-              variant={
-                (["intro", "letter", "camera", "celebrate"] as const)[step]
-              }
+            <img
+              className="mascot"
+              src={mascotSource(
+                draft.recipientGender,
+                templateMascotVariants[activeTemplate.id],
+              )}
+              alt=""
+              draggable={false}
             />
             <div>
               <strong>{draft.recipientName || "Шинэ мэндчилгээ"}</strong>
-              <span>{step + 1} / 4 алхам</span>
+              <span>
+                {activeTemplate.name} · {step + 1} / 4
+              </span>
             </div>
           </div>
           {["Загвар", "Хэнд", "Агуулга", "Preview"].map((label, index) => (
@@ -405,7 +994,13 @@ export function CreateGreetingApp() {
                       color: template.accent,
                     }}
                   >
-                    <img src={template.mascot} alt="" />
+                    <img
+                      src={mascotSource(
+                        draft.recipientGender,
+                        templateMascotVariants[template.id],
+                      )}
+                      alt=""
+                    />
                     <i style={{ background: template.accent }} />
                   </span>
                   <strong>{template.name}</strong>
@@ -418,57 +1013,141 @@ export function CreateGreetingApp() {
 
           {step === 1 && (
             <div className="form-stack">
-              <div className="field-grid">
-                <label>
-                  <span>Хүлээн авагчийн нэр</span>
-                  <input
-                    value={draft.recipientName}
-                    maxLength={40}
-                    onChange={(event) =>
-                      update({
-                        recipientName: sanitizePlainText(event.target.value, 40),
-                      })
-                    }
-                    placeholder="Жишээ нь: Ану"
-                  />
-                </label>
-                <label>
-                  <span>Илгээгчийн нэр</span>
-                  <input
-                    value={draft.senderName}
-                    maxLength={40}
-                    onChange={(event) =>
-                      update({
-                        senderName: sanitizePlainText(event.target.value, 40),
-                      })
-                    }
-                    placeholder="Таны нэр"
-                  />
-                </label>
-              </div>
-              <label>
-                <span>Төрсөн өдөр</span>
-                <div className="input-with-icon">
-                  <CalendarDays size={19} />
-                  <input
-                    type="date"
-                    value={draft.birthdayDate}
-                    onChange={(event) => update({ birthdayDate: event.target.value })}
-                  />
+              <section className="form-section">
+                <header className="form-section-title">
+                  <strong>Хэн хэнд</strong>
+                  <small>Хүлээн авагч болон илгээгчийн нэр — цээрлэдэг товчлол хэрэглэсэн ч болно.</small>
+                </header>
+                <div className="field-grid">
+                  <label>
+                    <span>
+                      Хүлээн авагчийн нэр
+                      <em>{draft.recipientName.length} / 40</em>
+                    </span>
+                    <input
+                      value={draft.recipientName}
+                      maxLength={40}
+                      onChange={(event) =>
+                        update({
+                          recipientName: sanitizePlainText(event.target.value, 40),
+                        })
+                      }
+                      placeholder="Жишээ нь: Ану"
+                    />
+                  </label>
+                  <label>
+                    <span>
+                      Илгээгчийн нэр
+                      <em>{draft.senderName.length} / 40</em>
+                    </span>
+                    <input
+                      value={draft.senderName}
+                      maxLength={40}
+                      onChange={(event) =>
+                        update({
+                          senderName: sanitizePlainText(event.target.value, 40),
+                        })
+                      }
+                      placeholder="Таны нэр"
+                    />
+                  </label>
                 </div>
-                <small>Хүлээн авагчид countdown болж харагдана.</small>
-              </label>
-              <label>
-                <span>Cover гарчиг</span>
-                <input
-                  value={draft.headline}
-                  maxLength={90}
-                  onChange={(event) =>
-                    update({ headline: sanitizePlainText(event.target.value, 90) })
-                  }
-                  placeholder={`Төрсөн өдрийн мэнд, ${draft.recipientName || "Ану"}!`}
-                />
-              </label>
+              </section>
+
+              <section className="form-section">
+                <header className="form-section-title">
+                  <strong>Маскот</strong>
+                  <small>Хүлээн авагчид тохирох дүр автоматаар сонгогдоно.</small>
+                </header>
+                <div className="gender-picker" role="group" aria-label="Хүлээн авагчийн хүйс">
+                  <button
+                    type="button"
+                    className={draft.recipientGender === "female" ? "selected" : ""}
+                    aria-pressed={draft.recipientGender === "female"}
+                    onClick={() => update({ recipientGender: "female" })}
+                  >
+                    <img src={mascotSource("female", "intro")} alt="" />
+                    <span>
+                      <strong>Эмэгтэй</strong>
+                      <small>Буга mascot</small>
+                    </span>
+                    {draft.recipientGender === "female" && <CheckCircle2 size={19} />}
+                  </button>
+                  <button
+                    type="button"
+                    className={draft.recipientGender === "male" ? "selected" : ""}
+                    aria-pressed={draft.recipientGender === "male"}
+                    onClick={() => update({ recipientGender: "male" })}
+                  >
+                    <img src={mascotSource("male", "intro")} alt="" />
+                    <span>
+                      <strong>Эрэгтэй</strong>
+                      <small>Бамбар mascot</small>
+                    </span>
+                    {draft.recipientGender === "male" && <CheckCircle2 size={19} />}
+                  </button>
+                </div>
+              </section>
+
+              <section className="form-section">
+                <header className="form-section-title">
+                  <strong>Огноо</strong>
+                  <small>Хүлээн авагчид countdown болж харагдана.</small>
+                </header>
+                <div className="field-block">
+                  <span className="field-label">Төрсөн өдөр</span>
+                  <DatePicker
+                    value={draft.birthdayDate}
+                    onChange={(value) => update({ birthdayDate: value })}
+                  />
+                  {(() => {
+                    const days = daysUntilBirthday(draft.birthdayDate);
+                    if (days === null) return null;
+                    if (days > 0)
+                      return (
+                        <small className="days-hint upcoming">
+                          <Sparkles size={13} /> {days} өдрийн дараа
+                        </small>
+                      );
+                    if (days === 0)
+                      return (
+                        <small className="days-hint today">
+                          <PartyPopper size={13} /> Өнөөдөр!
+                        </small>
+                      );
+                    return (
+                      <small className="days-hint past">
+                        {Math.abs(days)} өдрийн өмнөх огноо
+                      </small>
+                    );
+                  })()}
+                </div>
+              </section>
+
+              <section className="form-section">
+                <header className="form-section-title">
+                  <strong>Cover гарчиг</strong>
+                  <small>Хүлээн авагчийн cover дээр том үсгээр гарна.</small>
+                </header>
+                <label>
+                  <span>
+                    Гарчиг
+                    <em>{draft.headline.length} / 90</em>
+                  </span>
+                  <input
+                    value={draft.headline}
+                    maxLength={90}
+                    onChange={(event) =>
+                      update({
+                        headline: sanitizePlainText(event.target.value, 90),
+                      })
+                    }
+                    placeholder={`Төрсөн өдрийн мэнд, ${
+                      draft.recipientName || "Ану"
+                    }!`}
+                  />
+                </label>
+              </section>
             </div>
           )}
 
@@ -477,13 +1156,17 @@ export function CreateGreetingApp() {
               <section className="upload-panel">
                 <header>
                   <div>
-                    <strong>Дурсамжийн зураг</strong>
-                    <small>{draft.photos.length} / 6</small>
+                    <strong>Дурсамжийн албом</strong>
+                    <small>
+                      {draft.photos.length} / {MAX_PHOTOS} зураг · эхний зураг cover
+                    </small>
                   </div>
                   <button
                     type="button"
                     onClick={() => photoRef.current?.click()}
-                    disabled={uploading === "images" || draft.photos.length >= 6}
+                    disabled={
+                      uploading === "images" || draft.photos.length >= MAX_PHOTOS
+                    }
                   >
                     <ImagePlus size={17} />
                     {uploading === "images" ? "Оруулж байна..." : "Зураг нэмэх"}
@@ -502,6 +1185,25 @@ export function CreateGreetingApp() {
                     {draft.photos.map((photo, index) => (
                       <div key={photo}>
                         <img src={photo} alt={`Дурсамж ${index + 1}`} />
+                        {index === 0 && (
+                          <span className="photo-cover-badge">
+                            <Sparkles size={11} /> Cover
+                          </span>
+                        )}
+                        {index > 0 && (
+                          <IconButton
+                            label="Cover болгох"
+                            className="photo-promote"
+                            onClick={() => {
+                              const next = [...draft.photos];
+                              const [moved] = next.splice(index, 1);
+                              next.unshift(moved);
+                              update({ photos: next });
+                            }}
+                          >
+                            <ArrowLeft size={14} />
+                          </IconButton>
+                        )}
                         <IconButton
                           label="Зураг устгах"
                           onClick={() =>
@@ -530,47 +1232,67 @@ export function CreateGreetingApp() {
                 )}
               </section>
 
-              <label>
-                <span>Урт мэндчилгээ</span>
-                <textarea
-                  rows={7}
-                  value={draft.message}
-                  maxLength={1500}
-                  onChange={(event) =>
-                    update({ message: sanitizePlainText(event.target.value, 1500) })
-                  }
-                  placeholder="Сэтгэлийн үг, дурсамж, ерөөлөө бичээрэй..."
-                />
-                <small>{draft.message.length} / 1500</small>
-              </label>
+              <section className="form-section">
+                <header className="form-section-title">
+                  <strong>Мэндчилгээ</strong>
+                  <small>Хүлээн авагч захианы хуудсанд уншина.</small>
+                </header>
+                <label>
+                  <span>
+                    Урт мэндчилгээ
+                    <em
+                      className={
+                        draft.message.length > 1200
+                          ? draft.message.length >= 1500
+                            ? "count-limit"
+                            : "count-warn"
+                          : ""
+                      }
+                    >
+                      {draft.message.length} / 1500
+                    </em>
+                  </span>
+                  <textarea
+                    rows={7}
+                    value={draft.message}
+                    maxLength={1500}
+                    onChange={(event) =>
+                      update({
+                        message: sanitizePlainText(event.target.value, 1500),
+                      })
+                    }
+                    placeholder="Сэтгэлийн үг, дурсамж, ерөөлөө бичээрэй..."
+                  />
+                </label>
 
-              <label>
-                <span>Surprise төгсгөлийн үг</span>
-                <textarea
-                  rows={3}
-                  value={draft.surpriseMessage}
-                  maxLength={500}
-                  onChange={(event) =>
-                    update({
-                      surpriseMessage: sanitizePlainText(event.target.value, 500),
-                    })
-                  }
-                  placeholder="Энэ жил чамайг хамгийн сайхан зүйлс олоосой."
-                />
-              </label>
+                <label>
+                  <span>
+                    Surprise төгсгөлийн үг
+                    <em>{draft.surpriseMessage.length} / 500</em>
+                  </span>
+                  <textarea
+                    rows={3}
+                    value={draft.surpriseMessage}
+                    maxLength={500}
+                    onChange={(event) =>
+                      update({
+                        surpriseMessage: sanitizePlainText(
+                          event.target.value,
+                          500,
+                        ),
+                      })
+                    }
+                    placeholder="Энэ жил чамайг хамгийн сайхан зүйлс олоосой."
+                  />
+                </label>
+              </section>
 
-              <section className="music-upload">
-                <div className="music-icon">
-                  {draft.musicUrl ? <Volume2 size={22} /> : <Music2 size={22} />}
-                </div>
-                <div>
-                  <strong>{draft.musicName || "Төрсөн өдрийн дуу"}</strong>
-                  <small>
-                    {draft.musicUrl
-                      ? "Recipient play дарж сонсоно"
-                      : "MP3, M4A, OGG эсвэл WAV · 15MB хүртэл"}
-                  </small>
-                </div>
+              <section className="form-section">
+                <header className="form-section-title">
+                  <strong>Дуу</strong>
+                  <small>Хүлээн авагч music бэлгийг нээхэд тоглоно. Сонголтоор.</small>
+                </header>
+
                 <input
                   ref={musicRef}
                   className="visually-hidden"
@@ -578,90 +1300,428 @@ export function CreateGreetingApp() {
                   accept="audio/mpeg,audio/mp4,audio/ogg,audio/wav"
                   onChange={handleMusic}
                 />
+
                 {draft.musicUrl ? (
-                  <IconButton
-                    label="Дуу устгах"
-                    onClick={() => update({ musicUrl: "", musicName: "" })}
-                  >
-                    <Trash2 size={17} />
-                  </IconButton>
+                  <div className="music-selected">
+                    <div className="music-selected-icon">
+                      <Volume2 size={22} />
+                    </div>
+                    <div className="music-selected-meta">
+                      <strong>
+                        {draft.musicName || "Төрсөн өдрийн дуу"}
+                      </strong>
+                      <small>
+                        {parseYoutubeId(draft.musicUrl)
+                          ? "YouTube-ээс тоглох болно"
+                          : "Файл — recipient play дарж сонсоно"}
+                      </small>
+                    </div>
+                    <IconButton
+                      label="Дуу устгах"
+                      onClick={handleMusicClear}
+                    >
+                      <Trash2 size={17} />
+                    </IconButton>
+                  </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => musicRef.current?.click()}
-                    disabled={uploading === "music"}
-                  >
-                    <Upload size={17} />
-                    {uploading === "music" ? "Оруулж байна..." : "Дуу нэмэх"}
-                  </button>
+                  <div className="music-panel">
+                    <div className="music-tabs" role="tablist">
+                      {(
+                        [
+                          ["youtube", "YouTube хайх"],
+                          ["file", "Файл оруулах"],
+                          ["link", "Линкээ хуулах"],
+                        ] as const
+                      ).map(([id, label]) => (
+                        <button
+                          type="button"
+                          key={id}
+                          role="tab"
+                          aria-selected={musicTab === id}
+                          className={musicTab === id ? "active" : ""}
+                          onClick={() => setMusicTab(id)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {musicTab === "youtube" && (
+                      <div className="music-tab-body">
+                        <div className="music-youtube-search">
+                          <input
+                            type="search"
+                            value={ytQuery}
+                            maxLength={120}
+                            onChange={(event) => {
+                              setYtSearchError("");
+                              setYtQuery(event.target.value.slice(0, 120));
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                void runYoutubeSearch();
+                              }
+                            }}
+                            placeholder="Жишээ: happy birthday jazz"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => void runYoutubeSearch()}
+                            disabled={
+                              ytSearching || ytQuery.trim().length < 2
+                            }
+                          >
+                            <Music2 size={16} />
+                            {ytSearching ? "Хайж байна..." : "Хайх"}
+                          </button>
+                        </div>
+                        {ytSearchError && (
+                          <p className="music-youtube-error">{ytSearchError}</p>
+                        )}
+                        {ytResults.length > 0 && (
+                          <ul className="music-youtube-results">
+                            {ytResults.map((item) => (
+                              <li key={item.videoId}>
+                                <button
+                                  type="button"
+                                  onClick={() => selectYoutubeResult(item)}
+                                >
+                                  {item.thumbnail ? (
+                                    <img src={item.thumbnail} alt="" />
+                                  ) : (
+                                    <span className="thumb-fallback">
+                                      <Music2 size={18} />
+                                    </span>
+                                  )}
+                                  <span className="music-youtube-meta">
+                                    <strong>{item.title}</strong>
+                                    <small>{item.channelTitle}</small>
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+
+                    {musicTab === "file" && (
+                      <div className="music-tab-body music-file-body">
+                        <p>MP3, M4A, OGG, WAV · 15MB хүртэл.</p>
+                        <button
+                          type="button"
+                          className="music-tab-primary"
+                          onClick={() => musicRef.current?.click()}
+                          disabled={uploading === "music"}
+                        >
+                          <Upload size={17} />
+                          {uploading === "music"
+                            ? "Оруулж байна..."
+                            : "Файлаа сонгох"}
+                        </button>
+                      </div>
+                    )}
+
+                    {musicTab === "link" && (
+                      <div className="music-tab-body music-youtube-manual">
+                        <input
+                          type="url"
+                          inputMode="url"
+                          value={youtubeInput}
+                          maxLength={500}
+                          onChange={(event) => {
+                            setError("");
+                            setYoutubeInput(event.target.value.slice(0, 500));
+                          }}
+                          placeholder="https://youtu.be/..."
+                        />
+                        <input
+                          type="text"
+                          value={youtubeName}
+                          maxLength={100}
+                          onChange={(event) =>
+                            setYoutubeName(
+                              sanitizePlainText(event.target.value, 100),
+                            )
+                          }
+                          placeholder="Дууны нэр (сонголтоор)"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleYoutubeAdd}
+                          disabled={!youtubeInput.trim()}
+                        >
+                          <Music2 size={16} /> Оруулах
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </section>
             </div>
           )}
 
-          {step === 3 && (
-            <div className="publish-stage">
-              <CardPreview draft={draft} />
-              <section className="publish-checklist">
-                <strong>Бэлэн эсэх</strong>
-                <span className={draft.template ? "ready" : ""}>
-                  <Check size={16} /> 4 загвараас сонгосон
-                </span>
-                <span
-                  className={
-                    draft.recipientName && draft.senderName && draft.birthdayDate
-                      ? "ready"
-                      : ""
-                  }
-                >
-                  <Check size={16} /> Нэр, төрсөн өдөр оруулсан
-                </span>
-                <span className={draft.photos.length ? "ready" : ""}>
-                  <Check size={16} /> Зураг нэмсэн
-                </span>
-                <span className={draft.message ? "ready" : ""}>
-                  <Check size={16} /> Мэндчилгээ бичсэн
-                </span>
-                <label className="checkout-email">
-                  <span>Захиалга сэргээх email</span>
-                  <input
-                    type="email"
-                    value={ownerEmail}
-                    maxLength={160}
-                    autoComplete="email"
-                    onChange={(event) => {
-                      setError("");
-                      setOwnerEmail(event.target.value.slice(0, 160));
-                    }}
-                    placeholder="you@example.com"
-                  />
-                </label>
-                <div className="checkout-offer">
-                  <span>Нийтлэх эрх</span>
-                  <strong>6,900₮</strong>
-                  <small>1 төлбөр = 1 нийтлэгдсэн мэндчилгээний линк</small>
+          {step === 3 && (() => {
+            const checks: Array<{
+              ok: boolean;
+              label: string;
+              hint: string;
+              fixStep: number;
+            }> = [
+              {
+                ok: Boolean(draft.template),
+                label: "Загвар сонгосон",
+                hint: `${getTemplate(draft.template).name} загвар`,
+                fixStep: 0,
+              },
+              {
+                ok: Boolean(
+                  draft.recipientName &&
+                    draft.senderName &&
+                    draft.birthdayDate,
+                ),
+                label: "Нэр + огноо оруулсан",
+                hint:
+                  draft.recipientName && draft.senderName && draft.birthdayDate
+                    ? `${draft.recipientName}-д ${draft.senderName}-ээс`
+                    : "Хэн, хэнд, хэзээ дутуу",
+                fixStep: 1,
+              },
+              {
+                ok: draft.photos.length > 0,
+                label: "Зураг нэмсэн",
+                hint: draft.photos.length
+                  ? `${draft.photos.length} зураг · эхнийх нь cover`
+                  : "Хамгийн багадаа 1 зураг хэрэгтэй",
+                fixStep: 2,
+              },
+              {
+                ok: draft.message.trim().length > 0,
+                label: "Мэндчилгээ бичсэн",
+                hint: draft.message.trim().length
+                  ? `${draft.message.length} үсэг`
+                  : "Урт мэндчилгээ хараахан хоосон",
+                fixStep: 2,
+              },
+            ];
+            const daysLeft = daysUntilBirthday(draft.birthdayDate);
+            const ytId = parseYoutubeId(draft.musicUrl);
+            const musicBadge = !draft.musicUrl
+              ? "Чимээгүй"
+              : ytId
+              ? `YouTube · ${draft.musicName || "аялгуу"}`
+              : `Файл · ${draft.musicName || "аялгуу"}`;
+
+            const scenes: Array<{ id: PreviewScene; label: string }> = [
+              { id: "cover", label: "Cover" },
+              { id: "countdown", label: "Countdown" },
+              { id: "letter", label: "Захидал" },
+              { id: "music", label: "Дуу" },
+              { id: "finale", label: "Төгсгөл" },
+            ];
+
+            return (
+              <div className="publish-stage">
+                <div className="publish-preview">
+                  <div className="publish-scene-tabs" role="tablist">
+                    {scenes.map((s) => (
+                      <button
+                        type="button"
+                        key={s.id}
+                        role="tab"
+                        aria-selected={previewScene === s.id}
+                        className={previewScene === s.id ? "active" : ""}
+                        onClick={() => setPreviewScene(s.id)}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                  <CardPreview draft={draft} scene={previewScene} />
+                  <small className="publish-preview-note">
+                    Хүлээн авагч 6 scene-с бүрдсэн бүрэн туршлагыг үзнэ. Энд бүхэлдэх агуулгыг харуулж байна.
+                  </small>
                 </div>
-                <button
-                  type="button"
-                  className="primary-button"
-                  disabled={
-                    !isDraftReady(draft) ||
-                    checkingOut ||
-                    Boolean(uploading)
-                  }
-                  onClick={startCheckout}
-                >
-                  <Sparkles size={18} />
-                  {checkingOut
-                    ? "Нэхэмжлэх үүсгэж байна..."
-                    : "Линкээ идэвхжүүлэх · 6,900₮"}
-                </button>
-                <small className="free-preview-note">
-                  Загварлах, файл нэмэх, preview харах нь үнэгүй.
-                </small>
-              </section>
-            </div>
-          )}
+
+                <div className="publish-side">
+                  {(() => {
+                    const missing = checks.filter((c) => !c.ok);
+                    if (missing.length === 0) return null;
+                    return (
+                      <section className="publish-missing">
+                        <div className="publish-missing-head">
+                          <ShieldCheck size={16} />
+                          <strong>Төлбөр хийхээс өмнө нөх</strong>
+                        </div>
+                        <ul>
+                          {missing.map((m) => (
+                            <li key={m.label}>
+                              <span>{m.label}</span>
+                              <button
+                                type="button"
+                                onClick={() => setStep(m.fixStep)}
+                              >
+                                Засах
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    );
+                  })()}
+
+                  <section className="publish-invoice">
+                    <header>
+                      <div>
+                        <small>Merchant</small>
+                        <strong>mend.</strong>
+                      </div>
+                      <div className="publish-invoice-provider">
+                        <ShieldCheck size={12} />
+                        Powered by QPay
+                      </div>
+                    </header>
+
+                    <div className="publish-invoice-line">
+                      <div>
+                        <strong>Нэг удаагийн мэндчилгээний линк</strong>
+                        <small>
+                          {draft.recipientName
+                            ? `${draft.recipientName}-д зориулсан`
+                            : "Хүлээн авагч тодорхойгүй"}
+                          {draft.birthdayDate
+                            ? ` · ${formatMongolianDate(draft.birthdayDate)}`
+                            : ""}
+                        </small>
+                      </div>
+                      <span>6,900₮</span>
+                    </div>
+
+                    <div className="publish-invoice-total">
+                      <span>Нийт төлөх</span>
+                      <strong>6,900₮ MNT</strong>
+                    </div>
+
+                    <div className="publish-invoice-banks">
+                      <small>Дараагийн алхамд QR + банкны деplink</small>
+                      <div>
+                        <span>
+                          <Landmark size={12} /> Хаан
+                        </span>
+                        <span>
+                          <Landmark size={12} /> ХХБ
+                        </span>
+                        <span>
+                          <Landmark size={12} /> Голомт
+                        </span>
+                        <span>
+                          <QrCode size={12} /> QPay
+                        </span>
+                        <span>+ бусад</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="publish-invoice-pay"
+                      disabled={
+                        !isDraftReady(draft) ||
+                        checkingOut ||
+                        Boolean(uploading)
+                      }
+                      onClick={startCheckout}
+                    >
+                      {checkingOut ? (
+                        <>
+                          <LoaderCircle size={17} className="spin" />
+                          Нэхэмжлэх үүсгэж байна...
+                        </>
+                      ) : (
+                        <>
+                          <QrCode size={17} />
+                          6,900₮ төлөх
+                        </>
+                      )}
+                    </button>
+
+                    <small className="publish-invoice-note">
+                      <ShieldCheck size={11} />
+                      Encrypted checkout · Загварлах, preview үнэгүй
+                    </small>
+                  </section>
+
+                  <section className="publish-summary">
+                    <strong>Нийтлэх агуулга</strong>
+                    <dl>
+                      <div>
+                        <dt>Хэн</dt>
+                        <dd>
+                          {draft.recipientName || (
+                            <em>дутуу</em>
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Илгээгч</dt>
+                        <dd>{draft.senderName || <em>дутуу</em>}</dd>
+                      </div>
+                      <div>
+                        <dt>Огноо</dt>
+                        <dd>
+                          {draft.birthdayDate ? (
+                            <>
+                              {formatMongolianDate(draft.birthdayDate)}
+                              {daysLeft !== null && (
+                                <small>
+                                  {daysLeft > 0
+                                    ? ` · ${daysLeft} өдрийн дараа`
+                                    : daysLeft === 0
+                                    ? " · өнөөдөр"
+                                    : ` · ${Math.abs(daysLeft)} өдрийн өмнө`}
+                                </small>
+                              )}
+                            </>
+                          ) : (
+                            <em>дутуу</em>
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Загвар</dt>
+                        <dd>{getTemplate(draft.template).name}</dd>
+                      </div>
+                      <div>
+                        <dt>Зураг</dt>
+                        <dd>
+                          {draft.photos.length ? (
+                            `${draft.photos.length} зураг`
+                          ) : (
+                            <em>дутуу</em>
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Мэндчилгээ</dt>
+                        <dd>
+                          {draft.message.trim() ? (
+                            `${draft.message.length} үсэг`
+                          ) : (
+                            <em>дутуу</em>
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Дуу</dt>
+                        <dd>{musicBadge}</dd>
+                      </div>
+                    </dl>
+                  </section>
+
+                </div>
+              </div>
+            );
+          })()}
 
           {error && <p className="form-error">{error}</p>}
           <footer className="creator-footer">
@@ -734,7 +1794,12 @@ export function GreetingExperience({ slug }: { slug: string }) {
   const [guestName, setGuestName] = useState("");
   const [guestMessage, setGuestMessage] = useState("");
   const [guestSent, setGuestSent] = useState(false);
+  const [ytFailed, setYtFailed] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const soundButtonRef = useRef<HTMLButtonElement>(null);
+  const soundIconRef = useRef<HTMLSpanElement>(null);
+  const soundTextRef = useRef<HTMLSpanElement>(null);
+  const bolzooRef = useRef<BolzooAudioController | null>(null);
   const sessionId = useMemo(() => {
     if (typeof window === "undefined") return "server";
     const key = `mend-session-${slug}`;
@@ -762,6 +1827,47 @@ export function GreetingExperience({ slug }: { slug: string }) {
       )
       .finally(() => setLoading(false));
   }, [slug]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (document.querySelector('script[data-bolzoo-audio="1"]')) return;
+    const script = document.createElement("script");
+    script.src = "/assets/bolzoo-audio.js";
+    script.async = true;
+    script.setAttribute("data-bolzoo-audio", "1");
+    document.head.appendChild(script);
+  }, []);
+
+  const ytVideoId = greeting ? parseYoutubeId(greeting.musicUrl) : null;
+
+  useEffect(() => {
+    if (!ytVideoId) return;
+    let cancelled = false;
+    const tryInit = () => {
+      if (cancelled) return;
+      if (bolzooRef.current) return;
+      if (!window.BolzooAudio) {
+        window.setTimeout(tryInit, 120);
+        return;
+      }
+      bolzooRef.current = window.BolzooAudio.init({
+        videoId: ytVideoId,
+        volume: 55,
+        hostElId: "mend-yt-host",
+        buttonEl: soundButtonRef.current,
+        iconEl: soundIconRef.current,
+        textEl: soundTextRef.current,
+        onFail: () => setYtFailed(true),
+      });
+    };
+    tryInit();
+    return () => {
+      cancelled = true;
+      const controller = bolzooRef.current;
+      bolzooRef.current = null;
+      if (controller) controller.destroy();
+    };
+  }, [ytVideoId]);
 
   async function sendAction(
     action: "open" | "react" | "guestbook",
@@ -864,6 +1970,29 @@ export function GreetingExperience({ slug }: { slug: string }) {
         </IconButton>
       </header>
 
+      <div
+        id="mend-yt-host"
+        className="mend-yt-host"
+        aria-hidden="true"
+      />
+      {ytVideoId && !ytFailed && (
+        <div className="sound-dock">
+          <button
+            ref={soundButtonRef}
+            type="button"
+            className="sound"
+            aria-pressed="false"
+          >
+            <span ref={soundIconRef} className="sound-icon" aria-hidden="true">
+              🎵
+            </span>
+            <span ref={soundTextRef} className="sound-copy">
+              дуу асаах
+            </span>
+          </button>
+        </div>
+      )}
+
       <section className={`recipient-screen screen-${screen}`}>
         {screen === "envelope" && (
           <div className="envelope-scene">
@@ -873,7 +2002,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
               <Mail size={47} />
               <i>♥</i>
             </div>
-            <Mascot variant="intro" />
+            <Mascot gender={greeting.recipientGender} variant="intro" />
             <h1>Чамд нэг онцгой мэндчилгээ ирлээ</h1>
             <button
               type="button"
@@ -893,7 +2022,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
             <small>Төрсөн өдөр хүртэл</small>
             <h1>{greeting.recipientName}-ийн өдөр</h1>
             <Countdown birthdayDate={greeting.birthdayDate} />
-            <Mascot variant="celebrate" />
+            <Mascot gender={greeting.recipientGender} variant="celebrate" />
             <button
               type="button"
               className="primary-button"
@@ -922,7 +2051,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
                 Бэлгүүдийг нээх <Gift size={18} />
               </button>
             </div>
-            <Mascot variant="cake" />
+            <Mascot gender={greeting.recipientGender} variant="cake" />
           </div>
         )}
 
@@ -932,17 +2061,17 @@ export function GreetingExperience({ slug }: { slug: string }) {
             <h1>Чамд зориулсан 3 surprise</h1>
             <div className="gift-grid">
               <button type="button" onClick={() => openGift("memories")}>
-                <Mascot variant="camera" />
+                <Mascot gender={greeting.recipientGender} variant="camera" />
                 <strong>Дурсамж</strong>
                 {openedGifts.includes("memories") && <CheckCircle2 />}
               </button>
               <button type="button" onClick={() => openGift("letter")}>
-                <Mascot variant="letter" />
+                <Mascot gender={greeting.recipientGender} variant="letter" />
                 <strong>Захиа</strong>
                 {openedGifts.includes("letter") && <CheckCircle2 />}
               </button>
               <button type="button" onClick={() => openGift("music")}>
-                <Mascot variant="music" />
+                <Mascot gender={greeting.recipientGender} variant="music" />
                 <strong>Аялгуу</strong>
                 {openedGifts.includes("music") && <CheckCircle2 />}
               </button>
@@ -961,7 +2090,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
         {screen === "memories" && (
           <div className="memories-scene">
             <header>
-              <Mascot variant="camera" />
+              <Mascot gender={greeting.recipientGender} variant="camera" />
               <div>
                 <small>moments of us</small>
                 <h1>Бидний дурсамж</h1>
@@ -985,7 +2114,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
         {screen === "letter" && (
           <div className="letter-scene">
             <header>
-              <Mascot variant="letter" />
+              <Mascot gender={greeting.recipientGender} variant="letter" />
               <div>
                 <small>{greeting.senderName}-ээс</small>
                 <h1>{greeting.recipientName}-д</h1>
@@ -1007,31 +2136,46 @@ export function GreetingExperience({ slug }: { slug: string }) {
 
         {screen === "music" && (
           <div className="music-scene">
-            <Mascot variant="music" />
+            <Mascot gender={greeting.recipientGender} variant="music" />
             <small>Чамд зориулсан аялгуу</small>
             <h1>{greeting.musicName || "Энэ мөчийн аялгуу"}</h1>
             {greeting.musicUrl ? (
-              <>
-                <audio
-                  ref={audioRef}
-                  src={greeting.musicUrl}
-                  onPlay={() => setPlaying(true)}
-                  onPause={() => setPlaying(false)}
-                  onEnded={() => setPlaying(false)}
-                />
-                <button
-                  type="button"
-                  className="music-play"
-                  onClick={() => {
-                    if (!audioRef.current) return;
-                    if (playing) audioRef.current.pause();
-                    else void audioRef.current.play();
-                  }}
-                >
-                  {playing ? <Pause size={28} /> : <Play size={28} />}
-                </button>
-                <p>{playing ? "Аялгуу тоглож байна" : "Play дарж сонсоорой"}</p>
-              </>
+              ytVideoId ? (
+                ytFailed ? (
+                  <div className="no-music">
+                    <VolumeX size={25} />
+                    <span>
+                      YouTube-с холбогдож чадсангүй. Дараа дахин үзнэ үү.
+                    </span>
+                  </div>
+                ) : (
+                  <p className="music-dock-hint">
+                    Баруун дээд буланд байгаа 🎵 товчийг дарж дуу асаагаарай.
+                  </p>
+                )
+              ) : (
+                <>
+                  <audio
+                    ref={audioRef}
+                    src={greeting.musicUrl}
+                    onPlay={() => setPlaying(true)}
+                    onPause={() => setPlaying(false)}
+                    onEnded={() => setPlaying(false)}
+                  />
+                  <button
+                    type="button"
+                    className="music-play"
+                    onClick={() => {
+                      if (!audioRef.current) return;
+                      if (playing) audioRef.current.pause();
+                      else void audioRef.current.play();
+                    }}
+                  >
+                    {playing ? <Pause size={28} /> : <Play size={28} />}
+                  </button>
+                  <p>{playing ? "Аялгуу тоглож байна" : "Play дарж сонсоорой"}</p>
+                </>
+              )
             ) : (
               <div className="no-music">
                 <VolumeX size={25} />
@@ -1050,7 +2194,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
 
         {screen === "finale" && (
           <div className="finale-scene">
-            <Mascot variant="celebrate" />
+            <Mascot gender={greeting.recipientGender} variant="celebrate" />
             <small>Төрсөн өдрийн мэнд</small>
             <h1>
               {greeting.surpriseMessage ||

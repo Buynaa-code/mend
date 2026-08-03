@@ -13,6 +13,7 @@ type GreetingRow = {
   owner_token_hash: string;
   public_slug: string;
   recipient_name: string;
+  recipient_gender: string;
   sender_name: string;
   template: string;
   headline: string;
@@ -62,7 +63,7 @@ function parsePhotos(value: string) {
   try {
     const photos = JSON.parse(value);
     return Array.isArray(photos)
-      ? photos.filter((item): item is string => typeof item === "string").slice(0, 6)
+      ? photos.filter((item): item is string => typeof item === "string").slice(0, 30)
       : [];
   } catch {
     return [];
@@ -73,6 +74,7 @@ function toPublicGreeting(row: GreetingRow): PublicGreeting {
   return {
     publicSlug: row.public_slug,
     recipientName: row.recipient_name,
+    recipientGender: row.recipient_gender === "male" ? "male" : "female",
     senderName: row.sender_name,
     template: (templateIds.has(row.template as TemplateId)
       ? row.template

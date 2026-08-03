@@ -63,10 +63,11 @@ async function handleWebhook(request: Request) {
   await db
     .prepare(`
       INSERT OR IGNORE INTO webhook_events (
-        id, provider, event_id, payload_hash, status, created_at, processed_at
-      ) VALUES (?, 'qpay', ?, ?, 'received', ?, NULL)
+        id, provider, event_id, payload_hash, status, created_at,
+        signature_verified_at, processed_at
+      ) VALUES (?, 'qpay', ?, ?, 'received', ?, ?, NULL)
     `)
-    .bind(crypto.randomUUID(), providerEventId, payloadHash, now)
+    .bind(crypto.randomUUID(), providerEventId, payloadHash, now, now)
     .run();
   const event = await db
     .prepare(
