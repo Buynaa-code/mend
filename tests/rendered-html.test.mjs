@@ -41,7 +41,18 @@ test("renders the creator route", async () => {
   assert.match(html, /<title>mend\./i);
   assert.match(html, /mend creator/i);
   assert.match(html, /Загвараа сонго/);
-  assert.match(html, /Photo collage/);
+  for (const templateName of [
+    "Candy Pop",
+    "Midnight Rose",
+    "Electric Party",
+    "Memory Zine",
+    "Cosmic Dream",
+    "Groovy 70s",
+    "Modern Muse",
+    "Desert Bloom",
+  ]) {
+    assert.match(html, new RegExp(templateName));
+  }
   assert.match(html, /Dashboard/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });
@@ -124,4 +135,21 @@ test("selects the tiger mascot for male recipients", async () => {
   assert.match(source, /recipientGender === "male"/);
   assert.match(source, /mend-tiger-celebrate\.png/);
   assert.match(source, /onClick=\{\(\) => update\(\{ recipientGender: "male" \}\)\}/);
+});
+
+test("offers a 9:16 social story sharing flow", async () => {
+  const shareSource = await readFile(
+    new URL("../app/StoryShareButton.tsx", import.meta.url),
+    "utf8",
+  );
+  const paymentSource = await readFile(
+    new URL("../app/PaymentApp.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(shareSource, /1080/);
+  assert.match(shareSource, /1920/);
+  assert.match(shareSource, /navigator\.share/);
+  assert.match(shareSource, /Story-д оруулах/);
+  assert.match(paymentSource, /StoryShareButton/);
 });

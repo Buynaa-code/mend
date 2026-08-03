@@ -1,0 +1,615 @@
+/* Final collection layer. Kept after globals.css so each world owns its palette. */
+
+/* Card previews */
+.card-preview.template-cute {
+  background-color: #fff2a8;
+  background-image: radial-gradient(#ff4f8b 1.8px, transparent 1.8px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.34) 50%, transparent 50%),
+    linear-gradient(rgba(255, 255, 255, 0.34) 50%, transparent 50%);
+  background-size: 24px 24px, 36px 36px, 36px 36px;
+}
+
+.card-preview.template-cute .preview-photos {
+  top: 14%;
+  padding: 6% 6% 12%;
+  border: 0;
+  border-radius: 18px;
+  background: #fffdf6;
+  transform: rotate(-3deg);
+}
+
+.card-preview.template-cute .preview-copy h2 {
+  font-weight: 1000;
+  letter-spacing: -0.04em;
+  text-shadow: 2px 2px 0 #fff;
+}
+
+.card-preview.template-elegant {
+  background-color: #24142d;
+  background-image: radial-gradient(circle at 82% 12%, rgba(213, 170, 104, 0.25), transparent 26%),
+    radial-gradient(circle at 10% 88%, rgba(132, 48, 95, 0.35), transparent 34%),
+    linear-gradient(145deg, #33183c, #160d21);
+}
+
+.card-preview.template-elegant .preview-edition,
+.card-preview.template-elegant .preview-copy small {
+  color: #d5aa68;
+}
+
+.card-preview.template-elegant .preview-photos {
+  top: 11%;
+  right: 14%;
+  left: 14%;
+  height: 49%;
+  padding: 6px;
+  border: 1px solid rgba(213, 170, 104, 0.7);
+  border-radius: 220px 220px 18px 18px;
+  background: rgba(255, 248, 239, 0.08);
+  transform: none;
+}
+
+.card-preview.template-elegant .preview-photos img {
+  border: 0;
+  border-radius: 210px 210px 12px 12px;
+  filter: saturate(0.82) contrast(1.05);
+}
+
+.card-preview.template-elegant .preview-copy {
+  right: 12%;
+  bottom: 8%;
+  width: 66%;
+  color: #fff3df;
+}
+
+.card-preview.template-elegant .preview-copy h2,
+.card-preview.template-elegant .preview-scene-body h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+}
+
+.card-preview.template-party {
+  background-color: #3154e8;
+  background-image: repeating-conic-gradient(from 10deg at 83% 25%, rgba(255, 255, 255, 0.12) 0 8deg, transparent 8deg 17deg),
+    linear-gradient(145deg, #3154e8, #2138b7);
+}
+
+.card-preview.template-party .preview-photos {
+  top: 12%;
+  right: 7%;
+  left: 11%;
+  height: 45%;
+  padding: 8px;
+  border: 4px solid #111b57;
+  border-radius: 8px;
+  background: #f7ff72;
+  transform: rotate(3deg);
+  box-shadow: 10px 10px 0 #ff5a4f;
+}
+
+.card-preview.template-party .preview-photos img {
+  border: 0;
+  border-radius: 2px;
+}
+
+.card-preview.template-party .preview-copy {
+  color: #fff;
+}
+
+.card-preview.template-party .preview-copy h2 {
+  font-weight: 1000;
+  letter-spacing: -0.055em;
+  text-transform: uppercase;
+}
+
+.card-preview.template-collage {
+  background-color: #dcecff;
+  background-image: linear-gradient(rgba(23, 42, 85, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 42, 85, 0.1) 1px, transparent 1px),
+    linear-gradient(145deg, #eef6ff, #cfddf4);
+  background-size: 22px 22px, 22px 22px, auto;
+}
+
+.card-preview.template-collage .preview-photos {
+  top: 12%;
+  right: 6%;
+  left: 6%;
+  height: 52%;
+  gap: 7px;
+  padding: 14px;
+  border: 2px solid #172a55;
+  border-radius: 3px;
+  background: #fffef8;
+  transform: rotate(-1.5deg);
+  box-shadow: 9px 9px 0 rgba(255, 92, 53, 0.75);
+}
+
+.card-preview.template-collage .preview-copy h2 {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: clamp(15px, 2.2vw, 27px);
+  font-weight: 900;
+  letter-spacing: -0.06em;
+}
+
+.card-preview.template-dreamy {
+  background-color: #17143e;
+  background-image: radial-gradient(90% 65% at 5% 5%, rgba(201, 112, 255, 0.48), transparent 62%),
+    radial-gradient(85% 60% at 100% 90%, rgba(74, 255, 209, 0.3), transparent 65%),
+    linear-gradient(155deg, #211d55, #0d0d29);
+}
+
+.card-preview.template-dreamy::before {
+  opacity: 0.12;
+}
+
+.card-preview.template-dreamy .preview-edition,
+.card-preview.template-dreamy .preview-copy small {
+  color: #b8ffea;
+}
+
+.card-preview.template-dreamy .preview-photos {
+  top: 12%;
+  right: 11%;
+  left: 11%;
+  height: 48%;
+  padding: 8px;
+  border: 1px solid rgba(184, 255, 234, 0.5);
+  border-radius: 180px 180px 32px 32px;
+  background: rgba(255, 255, 255, 0.09);
+  transform: none;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0 50px rgba(184, 255, 234, 0.14);
+}
+
+.card-preview.template-dreamy .preview-photos img {
+  border: 0;
+  border-radius: 170px 170px 25px 25px;
+}
+
+.card-preview.template-dreamy .preview-copy {
+  color: #f7f2ff;
+}
+
+.card-preview.template-retro {
+  background-color: #f3bd45;
+  background-image: radial-gradient(120% 62% at 50% 108%, #e84b2c 0 25%, transparent 25.5%),
+    radial-gradient(108% 58% at 50% 108%, #6f722e 0 45%, transparent 45.5%),
+    radial-gradient(98% 55% at 50% 108%, #fbe19a 0 65%, transparent 65.5%);
+}
+
+.card-preview.template-retro .preview-photos {
+  top: 13%;
+  padding: 8px 8px 13%;
+  border: 3px solid #4b2b16;
+  border-radius: 4px;
+  background: #fff4d3;
+  transform: rotate(-2deg);
+  box-shadow: 8px 8px 0 #e84b2c;
+}
+
+.card-preview.template-retro .preview-copy h2,
+.card-preview.template-retro .preview-scene-body h2 {
+  font-weight: 1000;
+  letter-spacing: -0.055em;
+  text-transform: uppercase;
+}
+
+.card-preview.template-minimal {
+  border: 1px solid #111;
+  border-radius: 0;
+  background-color: #f2f0e9;
+  background-image: linear-gradient(90deg, transparent 33%, rgba(17, 17, 17, 0.13) 33% 33.25%, transparent 33.25%),
+    linear-gradient(transparent 67%, rgba(17, 17, 17, 0.13) 67% 67.25%, transparent 67.25%);
+  box-shadow: 12px 12px 0 #111;
+}
+
+.card-preview.template-minimal .preview-photos {
+  top: 10%;
+  right: 7%;
+  left: 33%;
+  height: 48%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  transform: none;
+  box-shadow: none;
+}
+
+.card-preview.template-minimal .preview-copy h2 {
+  max-width: 78%;
+  font-family: var(--font-nunito), sans-serif;
+  font-style: normal;
+  font-weight: 1000;
+  letter-spacing: -0.07em;
+  text-transform: uppercase;
+}
+
+.card-preview.template-boho {
+  background-color: #efd9bd;
+  background-image: radial-gradient(rgba(63, 53, 39, 0.12) 1.5px, transparent 1.5px),
+    radial-gradient(70% 45% at 0% 100%, rgba(126, 140, 97, 0.7), transparent 70%);
+  background-size: 22px 22px, auto;
+}
+
+.card-preview.template-boho .preview-photos {
+  top: 11%;
+  right: 14%;
+  left: 14%;
+  height: 51%;
+  padding: 7px;
+  border: 2px solid #b64f33;
+  border-radius: 230px 230px 18px 18px;
+  background: #fff7e9;
+  transform: none;
+}
+
+.card-preview.template-boho .preview-photos img {
+  border: 0;
+  border-radius: 220px 220px 12px 12px;
+}
+
+/* Full recipient experience */
+.recipient-experience.template-cute {
+  --theme-panel: rgba(255, 253, 246, 0.8);
+  --theme-panel-solid: #fffdf6;
+  --theme-panel-ink: #43245d;
+  --theme-button-ink: #fff;
+  background-color: #fff2a8;
+  background-image: radial-gradient(#ff4f8b 1.8px, transparent 1.8px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.28) 50%, transparent 50%),
+    linear-gradient(rgba(255, 255, 255, 0.28) 50%, transparent 50%);
+  background-size: 25px 25px, 38px 38px, 38px 38px;
+}
+
+.recipient-experience.template-cute .cover-photo {
+  padding: 22px 22px 58px;
+  border: 0;
+  border-radius: 24px;
+  background: #fffdf6;
+  box-shadow: 12px 14px 0 rgba(255, 79, 139, 0.3), 0 22px 60px rgba(67, 36, 93, 0.16);
+  transform: rotate(-3deg);
+}
+
+.recipient-experience.template-cute .cover-photo img {
+  border: 0;
+  border-radius: 14px;
+}
+
+.recipient-experience.template-elegant {
+  --theme-panel: rgba(255, 248, 239, 0.88);
+  --theme-panel-solid: #fff8ef;
+  --theme-panel-ink: #3a1e35;
+  --theme-button-ink: #28142d;
+  background-color: #24142d;
+  background-image: radial-gradient(circle at 85% 8%, rgba(213, 170, 104, 0.2), transparent 25%),
+    radial-gradient(circle at 5% 95%, rgba(132, 48, 95, 0.35), transparent 34%),
+    linear-gradient(145deg, #33183c, #160d21);
+}
+
+.recipient-experience.template-elegant .recipient-toolbar {
+  border-color: rgba(213, 170, 104, 0.35);
+  background: rgba(31, 16, 37, 0.72);
+}
+
+.recipient-experience.template-elegant .cover-photo {
+  padding: 9px;
+  border: 1px solid rgba(213, 170, 104, 0.75);
+  border-radius: 340px 340px 22px 22px;
+  background: rgba(255, 248, 239, 0.08);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.34);
+  transform: none;
+}
+
+.recipient-experience.template-elegant .cover-photo img {
+  border: 0;
+  border-radius: 330px 330px 15px 15px;
+}
+
+.recipient-experience.template-elegant .cover-copy h1,
+.recipient-experience.template-elegant .envelope-scene h1,
+.recipient-experience.template-elegant .countdown-scene h1,
+.recipient-experience.template-elegant .gift-scene h1,
+.recipient-experience.template-elegant .memories-scene h1,
+.recipient-experience.template-elegant .letter-scene h1,
+.recipient-experience.template-elegant .music-scene h1,
+.recipient-experience.template-elegant .finale-scene h1 {
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}
+
+.recipient-experience.template-party {
+  --theme-panel: rgba(247, 255, 114, 0.92);
+  --theme-panel-solid: #f7ff72;
+  --theme-panel-ink: #111b57;
+  --theme-button-ink: #fff;
+  background-color: #3154e8;
+  background-image: repeating-conic-gradient(from 10deg at 84% 23%, rgba(255, 255, 255, 0.1) 0 8deg, transparent 8deg 17deg),
+    linear-gradient(145deg, #3154e8, #2138b7);
+}
+
+.recipient-experience.template-party .cover-photo {
+  padding: 12px;
+  border: 5px solid #111b57;
+  border-radius: 8px;
+  background: #f7ff72;
+  box-shadow: 18px 18px 0 #ff5a4f;
+  transform: rotate(2deg);
+}
+
+.recipient-experience.template-party .cover-photo img {
+  border: 0;
+  border-radius: 2px;
+}
+
+.recipient-experience.template-party .cover-copy h1,
+.recipient-experience.template-party .envelope-scene h1,
+.recipient-experience.template-party .countdown-scene h1,
+.recipient-experience.template-party .gift-scene h1,
+.recipient-experience.template-party .music-scene h1,
+.recipient-experience.template-party .finale-scene h1 {
+  font-weight: 1000;
+  letter-spacing: -0.065em;
+  text-transform: uppercase;
+}
+
+.recipient-experience.template-collage {
+  --theme-panel: rgba(255, 254, 248, 0.88);
+  --theme-panel-solid: #fffef8;
+  --theme-panel-ink: #172a55;
+  --theme-button-ink: #fff;
+  background-color: #dcecff;
+  background-image: linear-gradient(rgba(23, 42, 85, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 42, 85, 0.1) 1px, transparent 1px),
+    linear-gradient(145deg, #eef6ff, #cfddf4);
+  background-size: 30px 30px, 30px 30px, auto;
+}
+
+.recipient-experience.template-collage .cover-photo {
+  padding: 18px 18px 52px;
+  border: 2px solid #172a55;
+  border-radius: 3px;
+  background: #fffef8;
+  box-shadow: 14px 14px 0 rgba(255, 92, 53, 0.76);
+  transform: rotate(-1.5deg);
+}
+
+.recipient-experience.template-collage .cover-photo img {
+  border: 0;
+  border-radius: 0;
+}
+
+.recipient-experience.template-collage .memory-grid img {
+  padding: 7px 7px 24px;
+  border: 1px solid #172a55;
+  border-radius: 2px;
+  background: #fffef8;
+  transform: none;
+}
+
+.recipient-experience.template-dreamy {
+  --theme-panel: rgba(48, 37, 92, 0.66);
+  --theme-panel-solid: #30255c;
+  --theme-panel-ink: #f7f2ff;
+  --theme-button-ink: #17143e;
+  background-color: #17143e;
+  background-image: radial-gradient(85% 65% at 5% 4%, rgba(201, 112, 255, 0.45), transparent 62%),
+    radial-gradient(90% 70% at 100% 95%, rgba(74, 255, 209, 0.28), transparent 65%),
+    linear-gradient(155deg, #211d55, #0d0d29);
+}
+
+.recipient-experience.template-dreamy .recipient-toolbar {
+  border-color: rgba(184, 255, 234, 0.24);
+  background: rgba(20, 17, 57, 0.64);
+}
+
+.recipient-experience.template-dreamy .cover-photo {
+  padding: 10px;
+  border: 1px solid rgba(184, 255, 234, 0.5);
+  border-radius: 340px 340px 34px 34px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 80px rgba(184, 255, 234, 0.12), 0 28px 80px rgba(0, 0, 0, 0.28);
+  transform: none;
+}
+
+.recipient-experience.template-dreamy .cover-photo img {
+  border: 0;
+  border-radius: 330px 330px 26px 26px;
+}
+
+.recipient-experience.template-dreamy .memory-grid img {
+  padding: 5px;
+  border: 1px solid rgba(184, 255, 234, 0.32);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.recipient-experience.template-retro {
+  --theme-panel: rgba(255, 244, 211, 0.9);
+  --theme-panel-solid: #fff4d3;
+  --theme-panel-ink: #4b2b16;
+  --theme-button-ink: #fff;
+  background-color: #f3bd45;
+  background-image: radial-gradient(120% 64% at 50% 110%, #e84b2c 0 24%, transparent 24.5%),
+    radial-gradient(110% 61% at 50% 110%, #6f722e 0 44%, transparent 44.5%),
+    radial-gradient(100% 58% at 50% 110%, #fbe19a 0 64%, transparent 64.5%);
+}
+
+.recipient-experience.template-retro .cover-photo {
+  padding: 18px 18px 54px;
+  border: 4px solid #4b2b16;
+  border-radius: 4px;
+  background: #fff4d3;
+  box-shadow: 14px 14px 0 #e84b2c;
+  transform: rotate(-2deg);
+}
+
+.recipient-experience.template-retro .cover-photo img {
+  border: 0;
+}
+
+.recipient-experience.template-retro .gift-grid > button {
+  border: 3px solid #4b2b16;
+  border-radius: 8px;
+  box-shadow: 7px 7px 0 rgba(232, 75, 44, 0.7);
+}
+
+.recipient-experience.template-minimal {
+  --theme-panel: rgba(255, 255, 255, 0.92);
+  --theme-panel-solid: #fff;
+  --theme-panel-ink: #111;
+  --theme-button-ink: #fff;
+  background-color: #f2f0e9;
+  background-image: linear-gradient(90deg, transparent 33%, rgba(17, 17, 17, 0.11) 33% 33.1%, transparent 33.1%),
+    linear-gradient(transparent 67%, rgba(17, 17, 17, 0.11) 67% 67.1%, transparent 67.1%);
+}
+
+.recipient-experience.template-minimal .recipient-toolbar {
+  border: 1px solid #111;
+  border-radius: 0;
+  background: rgba(242, 240, 233, 0.92);
+  box-shadow: none;
+}
+
+.recipient-experience.template-minimal .cover-photo {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: 14px 14px 0 #ff3d20;
+  transform: none;
+}
+
+.recipient-experience.template-minimal .cover-photo img {
+  border: 0;
+  border-radius: 0;
+}
+
+.recipient-experience.template-minimal .cover-copy h1,
+.recipient-experience.template-minimal .envelope-scene h1,
+.recipient-experience.template-minimal .countdown-scene h1,
+.recipient-experience.template-minimal .gift-scene h1,
+.recipient-experience.template-minimal .music-scene h1,
+.recipient-experience.template-minimal .finale-scene h1 {
+  font-family: var(--font-nunito), sans-serif;
+  font-style: normal;
+  font-weight: 1000;
+  letter-spacing: -0.07em;
+  text-transform: uppercase;
+}
+
+.recipient-experience.template-minimal .envelope,
+.recipient-experience.template-minimal .gift-grid > button,
+.recipient-experience.template-minimal .countdown-grid > div,
+.recipient-experience.template-minimal .letter-scene > article,
+.recipient-experience.template-minimal .reaction-row button,
+.recipient-experience.template-minimal .guestbook-form {
+  border: 1px solid #111;
+  border-radius: 0;
+  box-shadow: 7px 7px 0 #111;
+}
+
+.recipient-experience.template-boho {
+  --theme-panel: rgba(255, 247, 233, 0.86);
+  --theme-panel-solid: #fff7e9;
+  --theme-panel-ink: #3f3527;
+  --theme-button-ink: #fff;
+  background-color: #efd9bd;
+  background-image: radial-gradient(rgba(63, 53, 39, 0.12) 1.5px, transparent 1.5px),
+    radial-gradient(72% 48% at 0% 100%, rgba(126, 140, 97, 0.72), transparent 70%);
+  background-size: 23px 23px, auto;
+}
+
+.recipient-experience.template-boho .cover-photo {
+  padding: 10px;
+  border: 2px solid #b64f33;
+  border-radius: 350px 350px 26px 26px;
+  background: #fff7e9;
+  box-shadow: 0 28px 70px rgba(63, 53, 39, 0.18);
+  transform: none;
+}
+
+.recipient-experience.template-boho .cover-photo img {
+  border: 0;
+  border-radius: 340px 340px 18px 18px;
+}
+
+.recipient-experience.template-boho .memory-grid img {
+  border: 2px solid rgba(182, 79, 51, 0.32);
+  border-radius: 120px 120px 18px 18px;
+}
+
+/* Creator workspace palette */
+.creator-layout.template-cute .creator-workspace {
+  background-color: #fff8ca;
+  background-image: radial-gradient(rgba(255, 79, 139, 0.16) 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+
+.creator-layout.template-elegant .creator-workspace {
+  background-color: #24142d;
+  background-image: radial-gradient(circle at 90% 10%, rgba(213, 170, 104, 0.18), transparent 28%);
+}
+
+.creator-layout.template-party .creator-workspace {
+  background-color: #3154e8;
+  background-image: repeating-conic-gradient(from 10deg at 85% 20%, rgba(255, 255, 255, 0.08) 0 8deg, transparent 8deg 17deg);
+}
+
+.creator-layout.template-collage .creator-workspace {
+  background-color: #eaf3ff;
+  background-image: linear-gradient(rgba(23, 42, 85, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 42, 85, 0.08) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.creator-layout.template-dreamy .creator-workspace {
+  background-color: #17143e;
+  background-image: radial-gradient(85% 65% at 5% 4%, rgba(201, 112, 255, 0.3), transparent 62%),
+    radial-gradient(90% 70% at 100% 95%, rgba(74, 255, 209, 0.18), transparent 65%);
+}
+
+.creator-layout.template-retro .creator-workspace {
+  background-color: #f7cf70;
+  background-image: radial-gradient(100% 45% at 50% 110%, rgba(232, 75, 44, 0.32), transparent 65%);
+}
+
+.creator-layout.template-minimal .creator-workspace {
+  background-color: #f2f0e9;
+  background-image: linear-gradient(90deg, transparent 33%, rgba(17, 17, 17, 0.09) 33% 33.1%, transparent 33.1%);
+}
+
+.creator-layout.template-boho .creator-workspace {
+  background-color: #efd9bd;
+  background-image: radial-gradient(rgba(63, 53, 39, 0.12) 1.5px, transparent 1.5px);
+  background-size: 23px 23px;
+}
+
+.creator-layout.template-elegant .workspace-title h1,
+.creator-layout.template-elegant .workspace-title span,
+.creator-layout.template-party .workspace-title h1,
+.creator-layout.template-party .workspace-title span,
+.creator-layout.template-dreamy .workspace-title h1,
+.creator-layout.template-dreamy .workspace-title span {
+  color: var(--card-text);
+}
+
+@media (max-width: 760px) {
+  .recipient-experience.template-party .cover-photo {
+    box-shadow: 10px 10px 0 #ff5a4f;
+  }
+
+  .recipient-experience.template-collage .cover-photo {
+    box-shadow: 8px 8px 0 #ff5c35;
+  }
+
+  .recipient-experience.template-retro .cover-photo {
+    box-shadow: 8px 8px 0 #e84b2c;
+  }
+
+  .recipient-experience.template-minimal .cover-photo {
+    box-shadow: 8px 8px 0 #ff3d20;
+  }
+}

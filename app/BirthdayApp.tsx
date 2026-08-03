@@ -56,6 +56,7 @@ import {
   sanitizePlainText,
   templates,
 } from "./lib/greeting";
+import { StoryShareButton } from "./StoryShareButton";
 
 type OwnerEntry = {
   id: string;
@@ -259,10 +260,20 @@ export function CardPreview({
 }) {
   const photos = draft.photos.length ? draft.photos : fallbackPhotos;
   const isCollage = draft.template === "collage";
+  const template = getTemplate(draft.template);
   const wrapperClass = `card-preview template-${draft.template} scene-${scene} ${compact ? "compact" : ""}`;
 
   return (
     <div className={wrapperClass} style={themeStyle(draft.template)}>
+      <div className="preview-atmosphere" aria-hidden="true">
+        <span className="preview-orbit" />
+        <span className="preview-shape shape-a" />
+        <span className="preview-shape shape-b" />
+        <span className="preview-shape shape-c" />
+      </div>
+      <span className="preview-edition" aria-hidden="true">
+        mend / {template.name}
+      </span>
       <span className="paper-star star-a">★</span>
       <span className="paper-star star-b">★</span>
 
@@ -980,7 +991,7 @@ export function CreateGreetingApp() {
 
           {step === 0 && (
             <div className="template-grid">
-              {templates.map((template) => (
+              {templates.map((template, index) => (
                 <button
                   type="button"
                   className={draft.template === template.id ? "selected" : ""}
@@ -988,12 +999,20 @@ export function CreateGreetingApp() {
                   key={template.id}
                 >
                   <span
-                    className="template-swatch"
+                    className={`template-swatch template-${template.id}`}
                     style={{
                       background: template.background,
                       color: template.accent,
                     }}
                   >
+                    <span className="swatch-index" aria-hidden="true">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span className="swatch-art" aria-hidden="true">
+                      <b />
+                      <b />
+                      <b />
+                    </span>
                     <img
                       src={mascotSource(
                         draft.recipientGender,
@@ -1002,6 +1021,9 @@ export function CreateGreetingApp() {
                       alt=""
                     />
                     <i style={{ background: template.accent }} />
+                    <span className="swatch-name" aria-hidden="true">
+                      {template.name}
+                    </span>
                   </span>
                   <strong>{template.name}</strong>
                   <small>{template.description}</small>
@@ -1970,6 +1992,13 @@ export function GreetingExperience({ slug }: { slug: string }) {
         </IconButton>
       </header>
 
+      <div className="recipient-atmosphere" aria-hidden="true">
+        <span className="recipient-orbit" />
+        <span className="recipient-shape shape-a" />
+        <span className="recipient-shape shape-b" />
+        <span className="recipient-shape shape-c" />
+      </div>
+
       <div
         id="mend-yt-host"
         className="mend-yt-host"
@@ -2223,6 +2252,14 @@ export function GreetingExperience({ slug }: { slug: string }) {
                 🥹 <span>Сэтгэл хөдөллөө</span>
               </button>
             </div>
+            <div className="finale-story-share">
+              <StoryShareButton
+                slug={slug}
+                greeting={greeting}
+                label="Энэ мэндчилгээг Story-д хийх"
+              />
+              <small>9:16 зураг + бүтэн мэндчилгээний линк</small>
+            </div>
             <section className="guestbook-form">
               <header>
                 <MessageCircle size={20} />
@@ -2419,16 +2456,23 @@ export function DashboardApp() {
                   <span>💖 {greeting.reactions.heart}</span>
                   <span>🎉 {greeting.reactions.party}</span>
                   <span>🥹 {greeting.reactions.surprised}</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigator.clipboard?.writeText(
-                        `${window.location.origin}/g/${greeting.publicSlug}`,
-                      )
-                    }
-                  >
-                    <Copy size={15} /> Линк хуулах
-                  </button>
+                  <div className="dashboard-share-actions">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigator.clipboard?.writeText(
+                          `${window.location.origin}/g/${greeting.publicSlug}`,
+                        )
+                      }
+                    >
+                      <Copy size={15} /> Линк хуулах
+                    </button>
+                    <StoryShareButton
+                      slug={greeting.publicSlug}
+                      greeting={greeting}
+                      label="Story-д хийх"
+                    />
+                  </div>
                 </div>
                 <section className="guestbook-list">
                   <h3>Guestbook</h3>

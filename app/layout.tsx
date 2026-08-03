@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Caveat, Geist_Mono, Nunito } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
+import "./template-worlds.css";
 
 const nunito = Nunito({
   variable: "--font-nunito",
@@ -31,7 +32,7 @@ export async function generateMetadata(): Promise<Metadata> {
     requestHeaders.get("x-forwarded-proto") ??
     (host?.includes("localhost") ? "http" : "https");
   const origin = host ? `${protocol}://${host}` : "https://mend.gift";
-  const image = new URL("/og.png", origin).toString();
+  const image = new URL("/og-v2.png", origin).toString();
 
   return {
     metadataBase: new URL(origin),
@@ -42,7 +43,14 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       type: "website",
       locale: "mn_MN",
-      images: [{ url: image, width: 1732, height: 908, alt: "mend." }],
+      images: [
+        {
+          url: image,
+          width: 1734,
+          height: 907,
+          alt: "mend. төрсөн өдрийн мэндчилгээний бүтээлч загварууд",
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",

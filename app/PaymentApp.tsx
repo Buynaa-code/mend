@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppShell } from "./BirthdayApp";
+import { StoryShareButton } from "./StoryShareButton";
 
 type Deeplink = {
   name: string;
@@ -331,6 +332,11 @@ export function PaymentApp() {
               </div>
             )}
             <div className="payment-success-actions">
+              <StoryShareButton
+                slug={payment.publication.publicSlug}
+                recipientName={payment.publication.recipientName}
+                className="primary"
+              />
               <a className="primary-link" href={shareUrl}>
                 <Gift size={18} /> Линкээ нээх
               </a>
