@@ -2607,6 +2607,158 @@ function FAQSection({
   );
 }
 
+function ResumeSection() {
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+
+  async function submit() {
+    const trimmed = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(trimmed)) {
+      setError("Email формат буруу байна.");
+      return;
+    }
+    setError("");
+    setNotice("");
+    setSending(true);
+    try {
+      const response = await fetch("/api/draft/resume", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
+      });
+      const data = (await response.json()) as {
+        message?: string;
+        error?: string;
+      };
+      if (!response.ok) throw new Error(data.error || "Хүсэлт илгээж чадсангүй.");
+      setNotice(
+        data.message ||
+          "Мэдээлэл таарсан бол ноорогийн холбоосыг email-р илгээнэ.",
+      );
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Алдаа гарлаа.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <section
+      style={{
+        maxWidth: 640,
+        margin: "0 auto",
+        padding: "clamp(30px,5vw,60px) 22px 10px",
+      }}
+    >
+      <div
+        style={{
+          background: "#fffef9",
+          border: "1px solid #efeaf4",
+          borderRadius: 20,
+          padding: "clamp(24px,4vw,36px)",
+          textAlign: "center",
+          boxShadow: "0 8px 24px rgba(73,60,98,.06)",
+        }}
+      >
+        <h3
+          style={{
+            margin: "0 0 10px",
+            fontSize: "clamp(20px,2.8vw,26px)",
+            fontWeight: 900,
+            color: "#3b3050",
+            letterSpacing: "-.01em",
+          }}
+        >
+          Ноорогоо буцаах
+        </h3>
+        <p
+          style={{
+            margin: "0 0 20px",
+            fontSize: 15,
+            color: "#6b6377",
+            lineHeight: 1.5,
+          }}
+        >
+          Өөр төхөөрөмжөөс эсвэл browser-оос эхэлж, дундаас нь болисон уу?
+          Хадгалахдаа ашигласан email-ээ оруулбал үргэлжлүүлэх линкийг илгээнэ.
+        </p>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            flexWrap: "wrap",
+            justifyContent: "center",
+            maxWidth: 420,
+            margin: "0 auto",
+          }}
+        >
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="you@example.com"
+            disabled={sending}
+            style={{
+              flex: "1 1 220px",
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: "1px solid #d8d1e5",
+              fontSize: 15,
+              outline: "none",
+              background: "#fff",
+              color: "#3b3050",
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={sending || !email.trim()}
+            style={{
+              padding: "12px 20px",
+              borderRadius: 12,
+              border: "none",
+              background: sending ? "#c9bde3" : "#8069bd",
+              color: "#fff",
+              fontWeight: 800,
+              fontSize: 15,
+              cursor: sending || !email.trim() ? "not-allowed" : "pointer",
+              transition: "background .2s",
+            }}
+          >
+            {sending ? "Илгээж байна..." : "Линк илгээх"}
+          </button>
+        </div>
+        {notice && (
+          <p
+            style={{
+              margin: "14px 0 0",
+              fontSize: 14,
+              color: "#3d8f6b",
+              fontWeight: 700,
+            }}
+          >
+            {notice}
+          </p>
+        )}
+        {error && (
+          <p
+            style={{
+              margin: "14px 0 0",
+              fontSize: 14,
+              color: "#c94a4a",
+              fontWeight: 700,
+            }}
+          >
+            {error}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function CTABanner() {
   return (
     <section
@@ -2988,6 +3140,7 @@ export function LandingApp() {
           <PriceSection />
           <StatsAndTestimonials />
           <FAQSection openIndex={openFaq} onToggle={toggleFaq} />
+          <ResumeSection />
           <CTABanner />
           <LandingFooter />
           {mounted && isMobile && <div style={{ height: 78 }} />}

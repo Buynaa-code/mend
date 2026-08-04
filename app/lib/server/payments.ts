@@ -102,6 +102,15 @@ export async function deriveRecoveryToken(paymentId: string, email: string) {
   return signValue(secret, `recovery:${paymentId}:${email}`);
 }
 
+export async function deriveDraftToken(draftId: string, email: string) {
+  const secret = await requireAppSecret();
+  return signValue(secret, `draft:${draftId}:${email}`);
+}
+
+export function draftExpiry(now = Date.now(), days = 30) {
+  return new Date(now + days * 86_400_000).toISOString();
+}
+
 export async function signWebhook(paymentId: string, timestamp: string) {
   const secret = await requireAppSecret();
   return signValue(secret, `qpay:${paymentId}:${timestamp}`);

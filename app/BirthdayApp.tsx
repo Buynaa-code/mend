@@ -107,6 +107,7 @@ type RecipientScreen =
   | "finale";
 
 const draftKey = "mend-create-draft-v2";
+const draftTokenKey = "mend-draft-token-v1";
 const ownerKey = "mend-owner-tokens-v2";
 const fallbackPhotos = [
   "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=900&q=80",
@@ -723,12 +724,85 @@ export function CreateGreetingApp() {
     "youtube",
   );
   const [previewScene, setPreviewScene] = useState<PreviewScene>("cover");
+  const [saveEmail, setSaveEmail] = useState("");
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [saveNotice, setSaveNotice] = useState("");
   const photoRef = useRef<HTMLInputElement>(null);
   const musicRef = useRef<HTMLInputElement>(null);
   const step = Math.max(0, Math.min(3, draft.currentStep));
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      let resumePlan: {
+        id: string;
+        token: string;
+        email: string;
+      } | null = null;
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const resumeId = params.get("resume") || "";
+        const resumeToken = params.get("token") || "";
+        const resumeEmail = params.get("e") || "";
+        if (resumeId && resumeToken && resumeEmail) {
+          resumePlan = {
+            id: resumeId,
+            token: resumeToken,
+            email: resumeEmail,
+          };
+        }
+      } catch {
+        /* URL parse алдаа — үл хамаарна */
+      }
+
+      if (resumePlan) {
+        void (async () => {
+          try {
+            const response = await fetch("/api/draft/load", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(resumePlan),
+            });
+            const data = (await response.json()) as {
+              draft?: Partial<GreetingDraft>;
+              error?: string;
+            };
+            if (!response.ok || !data.draft) {
+              throw new Error(data.error || "Ноорог олдсонгүй.");
+            }
+            const merged: GreetingDraft = {
+              ...createDefaultDraft(),
+              ...data.draft,
+            };
+            setDraft(merged);
+            setSaveEmail(resumePlan!.email);
+            window.localStorage.setItem(draftKey, JSON.stringify(merged));
+            window.localStorage.setItem(
+              draftTokenKey,
+              JSON.stringify({
+                id: resumePlan!.id,
+                token: resumePlan!.token,
+                email: resumePlan!.email,
+              }),
+            );
+            setSaveNotice("Ноорогоо сэргээлээ.");
+          } catch (caught) {
+            setError(
+              caught instanceof Error
+                ? caught.message
+                : "Ноорог уншиж чадсангүй.",
+            );
+          } finally {
+            setHydrated(true);
+            const url = new URL(window.location.href);
+            url.searchParams.delete("resume");
+            url.searchParams.delete("token");
+            url.searchParams.delete("e");
+            window.history.replaceState({}, "", url.toString());
+          }
+        })();
+        return;
+      }
+
       const saved = window.localStorage.getItem(draftKey);
       let next: GreetingDraft = createDefaultDraft();
       if (saved) {
@@ -760,6 +834,80 @@ export function CreateGreetingApp() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  async function saveProgress() {
+    const trimmed = saveEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(trimmed)) {
+      setError("Email формат буруу байна.");
+      return;
+    }
+    setError("");
+    setSavingDraft(true);
+    setSaveNotice("");
+    try {
+      const storedRaw = window.localStorage.getItem(draftTokenKey);
+      let existing: { id: string; token: string; email: string } | null = null;
+      if (storedRaw) {
+        try {
+          const parsed = JSON.parse(storedRaw);
+          if (
+            parsed &&
+            typeof parsed.id === "string" &&
+            typeof parsed.token === "string" &&
+            parsed.email === trimmed
+          ) {
+            existing = parsed;
+          }
+        } catch {
+          /* ignore corrupt token */
+        }
+      }
+      const saveResponse = await fetch("/api/draft/save", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          id: existing?.id,
+          token: existing?.token,
+          email: trimmed,
+          draft,
+        }),
+      });
+      const saveResult = (await saveResponse.json()) as {
+        id?: string;
+        token?: string;
+        error?: string;
+      };
+      if (!saveResponse.ok || !saveResult.id || !saveResult.token) {
+        throw new Error(saveResult.error || "Хадгалж чадсангүй.");
+      }
+      window.localStorage.setItem(
+        draftTokenKey,
+        JSON.stringify({
+          id: saveResult.id,
+          token: saveResult.token,
+          email: trimmed,
+        }),
+      );
+      const resumeResponse = await fetch("/api/draft/resume", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
+      });
+      if (!resumeResponse.ok) {
+        const resumeResult = (await resumeResponse.json()) as {
+          error?: string;
+        };
+        throw new Error(resumeResult.error || "Линк илгээж чадсангүй.");
+      }
+      setSaveNotice(
+        "Хадгалагдлаа. Үргэлжлүүлэх линкийг таны email рүү илгээв.",
+      );
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Алдаа гарлаа.");
+    } finally {
+      setSavingDraft(false);
+    }
+  }
 
   useEffect(() => {
     if (hydrated) {
@@ -1792,6 +1940,47 @@ export function CreateGreetingApp() {
                         <dd>{musicBadge}</dd>
                       </div>
                     </dl>
+                  </section>
+
+                  <section className="publish-save">
+                    <strong>Дараа үргэлжлүүлэх үү?</strong>
+                    <p>
+                      Email оруулбал ноорогоо server-т хадгалж, үргэлжлүүлэх
+                      линкийг таны email рүү илгээнэ. Аль ч төхөөрөмжөөс буцаж
+                      орох боломжтой.
+                    </p>
+                    <label className="publish-save-field">
+                      <span>Email</span>
+                      <input
+                        type="email"
+                        value={saveEmail}
+                        onChange={(event) => setSaveEmail(event.target.value)}
+                        placeholder="you@example.com"
+                        disabled={savingDraft}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="publish-save-button"
+                      onClick={() => void saveProgress()}
+                      disabled={savingDraft || !saveEmail.trim()}
+                    >
+                      {savingDraft ? (
+                        <>
+                          <LoaderCircle size={15} className="spin" />
+                          Хадгалж байна...
+                        </>
+                      ) : (
+                        <>
+                          <Mail size={15} /> Хадгалж, линк илгээх
+                        </>
+                      )}
+                    </button>
+                    {saveNotice && (
+                      <small className="publish-save-notice">
+                        {saveNotice}
+                      </small>
+                    )}
                   </section>
 
                 </div>
