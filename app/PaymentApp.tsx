@@ -437,19 +437,24 @@ export function PaymentApp() {
                   {inAppBrowser && hasBankLinks && (
                     <div className="inapp-notice">
                       <strong>
-                        Банкны апп {inAppBrowser.appName} доторх browser-ээс
-                        нээгдэхгүй
+                        {inAppBrowser.appName} доторх browser нь банкны аппыг
+                        нээхгүй
                       </strong>
                       <p>
-                        {inAppBrowser.appName} нь банкны аппыг нээх зөвшөөрөл
-                        өгдөггүй. Төлбөрөө хийхийн тулд энэ хуудсыг утасныхаа
-                        {inAppBrowser.isIos ? " Safari" : " Chrome"}-д нээнэ үү.
+                        <b>Хамгийн хурдан:</b> доорх QR-ыг банкны аппаараа шууд
+                        уншуулаад төлбөрөө хий. Bank товч Messenger дотор
+                        ажиллахгүй тул нуусан.
+                      </p>
+                      <p>
+                        Эсвэл энэ хуудсыг утасныхаа
+                        {inAppBrowser.isIos ? " Safari" : " Chrome"}-д нээгээд
+                        bank товчийг ашиглаж болно:
                       </p>
                       {inAppBrowser.isIos && (
                         <ol className="inapp-notice-steps">
                           <li>
-                            <span>1</span> Баруун дээд буланд байрлах ••• товчийг
-                            дарна
+                            <span>1</span> Хуудасны баруун доод буланд байрлах
+                            ••• товчийг дарна
                           </li>
                           <li>
                             <span>2</span> “Open in Safari” / “Open in browser”-ыг
@@ -511,7 +516,7 @@ export function PaymentApp() {
                     </button>
                   </div>
 
-                  {hasBankLinks && (
+                  {hasBankLinks && !inAppBrowser && (
                     <div className="bank-links">
                       <span>эсвэл банкны аппаа шууд нээх:</span>
                       {primaryBank && (
