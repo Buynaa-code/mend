@@ -7733,12 +7733,53 @@ img {
 
 /* Interactive birthday cake reveal */
 .cake-scene {
+  position: relative;
   width: min(100%, 760px);
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   animation: cakeSceneIn 620ms cubic-bezier(0.2, 0.86, 0.24, 1) both;
+}
+
+/* Soft focus vignette so the cake stands out against bright templates. */
+.cake-scene::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: -8% -12%;
+  background: radial-gradient(
+    55% 45% at 50% 52%,
+    rgba(23, 12, 35, 0.22),
+    rgba(23, 12, 35, 0.08) 55%,
+    transparent 78%
+  );
+  pointer-events: none;
+}
+
+.cake-scene > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Halo that pulses out from the cake the moment the candles are blown. */
+.cake-scene::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 42%;
+  left: 50%;
+  width: 260px;
+  height: 260px;
+  border: 3px solid var(--card-accent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.4);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cake-scene.is-blown::after {
+  animation: cakeWishHalo 1.4s cubic-bezier(0.16, 0.84, 0.44, 1) both;
 }
 
 .cake-scene > small {
@@ -7911,8 +7952,12 @@ img {
 }
 
 .cake-scene.is-listening .candle-flame {
-  animation-duration: 360ms;
-  box-shadow: inset 0 -8px 0 #ffd84c, 0 0 22px 7px rgba(255, 153, 45, 0.72);
+  animation-duration: calc(360ms - var(--blow-level, 0) * 220ms);
+  box-shadow:
+    inset 0 -8px 0 #ffd84c,
+    0 0 calc(22px + var(--blow-level, 0) * 22px)
+      calc(7px + var(--blow-level, 0) * 5px)
+      rgba(255, 153, 45, calc(0.72 + var(--blow-level, 0) * 0.24));
 }
 
 .candle-smoke {
@@ -7989,7 +8034,8 @@ img {
 }
 
 .cake-scene.is-blown .candle-flame {
-  animation: candleOut 240ms ease-out both;
+  animation: candleOut 520ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  filter: brightness(1.35) saturate(1.2);
 }
 
 .cake-scene.is-blown .candle-smoke {
@@ -8078,8 +8124,16 @@ img {
 }
 
 @keyframes candleOut {
-  0% { opacity: 1; transform: translateX(-50%) scale(1); }
-  100% { opacity: 0; transform: translateX(-50%) scale(0.1); }
+  0% { opacity: 1; transform: translateX(-50%) scale(1, 1); }
+  32% { opacity: 1; transform: translateX(-50%) scale(1.7, 0.7) translateY(4px); }
+  60% { opacity: 0.7; transform: translateX(-45%) scale(0.55, 1.35) translateY(-6px); }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.05, 0.4) translateY(-10px); }
+}
+
+@keyframes cakeWishHalo {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); border-width: 3px; }
+  25% { opacity: 0.55; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.7); border-width: 1px; }
 }
 
 @keyframes candleSmoke {
@@ -8090,9 +8144,10 @@ img {
 
 @keyframes cakeCelebrate {
   0% { transform: scale(1); }
-  28% { transform: scale(0.94) translateY(7px); }
-  62% { transform: scale(1.08) translateY(-9px); }
-  100% { transform: scale(1) translateY(0); }
+  22% { transform: scale(0.9) translateY(9px); }
+  52% { transform: scale(1.12) translateY(-12px) rotate(-1.5deg); }
+  74% { transform: scale(0.98) translateY(-3px) rotate(1deg); }
+  100% { transform: scale(1) translateY(0) rotate(0); }
 }
 
 @keyframes cakeConfettiBurst {
