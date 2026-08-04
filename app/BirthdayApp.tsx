@@ -2100,6 +2100,7 @@ function BirthdayCakeExperience({
         window.clearTimeout(completeTimerRef.current);
       }
     },
+    [],
   );
 
   async function startListening() {
