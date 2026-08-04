@@ -392,25 +392,6 @@ export function PaymentApp() {
                 <Copy size={18} />
               </button>
             </div>
-            {payment.accessCode && (
-              <div className="access-code-line">
-                <TicketCheck size={22} />
-                <span>
-                  Нэг удаагийн код
-                  <strong>{payment.accessCode}</strong>
-                </span>
-                <button
-                  type="button"
-                  title="Код хуулах"
-                  aria-label="Код хуулах"
-                  onClick={() =>
-                    navigator.clipboard?.writeText(payment.accessCode)
-                  }
-                >
-                  <Copy size={16} />
-                </button>
-              </div>
-            )}
             <div className="payment-success-actions">
               <StoryShareButton
                 slug={payment.publication.publicSlug}
