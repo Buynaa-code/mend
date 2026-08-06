@@ -22,17 +22,28 @@
     var destroyed = false;
 
     function updateSoundUI() {
+      var loading = wantPlay && !bgStarted && ytState !== "failed";
+      var playingLive = bgStarted && !muted;
       if (buttonEl) {
+        buttonEl.setAttribute("aria-pressed", playingLive ? "true" : "false");
+        buttonEl.setAttribute("aria-busy", loading ? "true" : "false");
         buttonEl.setAttribute(
-          "aria-pressed",
-          !muted && bgStarted ? "true" : "false",
+          "data-sound-state",
+          loading ? "loading" : playingLive ? "playing" : muted && bgStarted ? "muted" : "idle",
         );
       }
       if (iconEl) {
-        iconEl.textContent = !bgStarted ? "🎵" : muted ? "🔇" : "🔊";
+        if (loading) {
+          // Emptied so the CSS spinner pseudo-element can take over.
+          iconEl.textContent = "";
+        } else {
+          iconEl.textContent = !bgStarted ? "🎵" : muted ? "🔇" : "🔊";
+        }
       }
       if (textEl) {
-        textEl.textContent = !bgStarted
+        textEl.textContent = loading
+          ? "Ачаалж байна..."
+          : !bgStarted
           ? "дуу асаах"
           : muted
           ? "дуу нээх"
@@ -172,6 +183,9 @@
       if (destroyed) return;
       firstGestureAt = Date.now();
       wantPlay = true;
+      // Reflect the loading state right away so the buyer sees feedback even
+      // when the YouTube iframe API is still fetching.
+      updateSoundUI();
       startBackground();
       setTimeout(function () {
         if (destroyed) return;
