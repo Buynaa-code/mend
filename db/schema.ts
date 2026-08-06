@@ -78,17 +78,21 @@ export const accessCodes = sqliteTable(
     paymentId: text("payment_id")
       .notNull()
       .references(() => payments.id, { onDelete: "restrict" }),
+    source: text("source").notNull().default("paid"),
     code: text("code").notNull(),
     status: text("status").notNull(),
     issuedAt: text("issued_at").notNull(),
     expiresAt: text("expires_at"),
     usedAt: text("used_at"),
     greetingId: text("greeting_id"),
+    label: text("label"),
+    createdBy: text("created_by"),
   },
   (table) => [
     uniqueIndex("access_codes_payment_id_unique").on(table.paymentId),
     uniqueIndex("access_codes_code_unique").on(table.code),
     index("access_codes_status_idx").on(table.status),
+    index("access_codes_source_idx").on(table.source),
   ],
 );
 

@@ -3,6 +3,7 @@ type AppBindings = {
   MEDIA?: R2Bucket;
   APP_SECRET?: string;
   ADMIN_API_SECRET?: string;
+  ADMIN_EMAILS?: string;
   PUBLIC_APP_URL?: string;
   PAYMENT_PROVIDER_MODE?: string;
   PAYMENT_DEMO_SECRET?: string;
@@ -141,12 +142,15 @@ async function initializeSchema() {
       CREATE TABLE IF NOT EXISTS access_codes (
         id TEXT PRIMARY KEY,
         payment_id TEXT NOT NULL UNIQUE,
+        source TEXT NOT NULL DEFAULT 'paid',
         code TEXT NOT NULL UNIQUE,
         status TEXT NOT NULL,
         issued_at TEXT NOT NULL,
         expires_at TEXT,
         used_at TEXT,
         greeting_id TEXT,
+        label TEXT,
+        created_by TEXT,
         FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE RESTRICT
       )
     `),
@@ -230,6 +234,31 @@ async function initializeSchema() {
   await db
     .prepare(
       "CREATE UNIQUE INDEX IF NOT EXISTS greetings_access_code_id_unique ON greetings(access_code_id)",
+    )
+    .run();
+
+  const accessCodeColumns = await db
+    .prepare("PRAGMA table_info(access_codes)")
+    .all<{ name: string }>();
+  const accessCodeNames = new Set(accessCodeColumns.results.map((c) => c.name));
+  const additions: Array<[string, string]> = [
+    ["source", "ALTER TABLE access_codes ADD COLUMN source TEXT NOT NULL DEFAULT 'paid'"],
+    ["label", "ALTER TABLE access_codes ADD COLUMN label TEXT"],
+    ["created_by", "ALTER TABLE access_codes ADD COLUMN created_by TEXT"],
+  ];
+  for (const [name, sql] of additions) {
+    if (!accessCodeNames.has(name)) {
+      try {
+        await db.prepare(sql).run();
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : "";
+        if (!/duplicate column/i.test(message)) throw caught;
+      }
+    }
+  }
+  await db
+    .prepare(
+      "CREATE INDEX IF NOT EXISTS access_codes_source_idx ON access_codes(source)",
     )
     .run();
 

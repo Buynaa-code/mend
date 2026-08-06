@@ -109,6 +109,9 @@ type RecipientScreen =
 const draftKey = "mend-create-draft-v2";
 const draftTokenKey = "mend-draft-token-v1";
 const ownerKey = "mend-owner-tokens-v2";
+const resumeSentKey = "mend-resume-sent-v1";
+const resumeDismissedKey = "mend-resume-dismissed-v1";
+const resumeDismissMs = 24 * 60 * 60 * 1000;
 const fallbackPhotos = [
   "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=900&q=80",
   "https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=900&q=80",
@@ -323,6 +326,27 @@ export function CardPreview({
             <p className="preview-hollow">Огноо хараахан оруулаагүй</p>
           )}
           <Mascot gender={draft.recipientGender} variant="celebrate" />
+        </div>
+      )}
+
+      {scene === "photos" && (
+        <div className="preview-scene-body photos">
+          <small>Зурагууд</small>
+          <h2>
+            {draft.photos.length
+              ? `${draft.photos.length} дурсамж`
+              : "Дурсамжууд"}
+          </h2>
+          {draft.photos.length ? (
+            <div className="preview-photo-gallery">
+              {draft.photos.slice(0, 6).map((photo, index) => (
+                <img src={photo} alt="" key={`${photo}-${index}`} />
+              ))}
+            </div>
+          ) : (
+            <p className="preview-hollow">Зураг оруулаагүй</p>
+          )}
+          <Mascot gender={draft.recipientGender} variant="camera" />
         </div>
       )}
 
@@ -727,6 +751,12 @@ export function CreateGreetingApp() {
   const [saveEmail, setSaveEmail] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
   const [saveNotice, setSaveNotice] = useState("");
+  const [accessCodeInput, setAccessCodeInput] = useState("");
+  const [publishingWithCode, setPublishingWithCode] = useState(false);
+  const [publishedFromCode, setPublishedFromCode] =
+    useState<{ publicSlug: string; recipientName: string } | null>(null);
+  const [resumeSaved, setResumeSaved] = useState(false);
+  const [resumeBannerDismissed, setResumeBannerDismissed] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
   const musicRef = useRef<HTMLInputElement>(null);
   const step = Math.max(0, Math.min(3, draft.currentStep));
@@ -830,6 +860,19 @@ export function CreateGreetingApp() {
         /* URL parse алдаа — үл хамаарна */
       }
       setDraft(next);
+      try {
+        if (window.localStorage.getItem(resumeSentKey) === "1") {
+          setResumeSaved(true);
+        }
+        const dismissedAt = Number(
+          window.localStorage.getItem(resumeDismissedKey) || 0,
+        );
+        if (dismissedAt && Date.now() - dismissedAt < resumeDismissMs) {
+          setResumeBannerDismissed(true);
+        }
+      } catch {
+        /* localStorage бүрхэгдвэл banner default буюу нээлттэй үлдэнэ */
+      }
       setHydrated(true);
     }, 0);
     return () => window.clearTimeout(timer);
@@ -902,10 +945,26 @@ export function CreateGreetingApp() {
       setSaveNotice(
         "Хадгалагдлаа. Үргэлжлүүлэх линкийг таны email рүү илгээв.",
       );
+      setResumeSaved(true);
+      try {
+        window.localStorage.setItem(resumeSentKey, "1");
+        window.localStorage.removeItem(resumeDismissedKey);
+      } catch {
+        /* localStorage бүрхэгдсэн ч UI-д notice харагдана */
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Алдаа гарлаа.");
     } finally {
       setSavingDraft(false);
+    }
+  }
+
+  function dismissResumeBanner() {
+    setResumeBannerDismissed(true);
+    try {
+      window.localStorage.setItem(resumeDismissedKey, String(Date.now()));
+    } catch {
+      /* localStorage бүрхэгдвэл дараагийн орох үед banner дахин мандана */
     }
   }
 
@@ -1077,6 +1136,63 @@ export function CreateGreetingApp() {
       setError(caught instanceof Error ? caught.message : "Алдаа гарлаа.");
     } finally {
       setCheckingOut(false);
+    }
+  }
+
+  async function publishWithCode() {
+    const code = accessCodeInput.trim().toUpperCase();
+    if (!code) {
+      setError("Кодоо бүрэн оруулна уу.");
+      return;
+    }
+    if (!isDraftReady(draft)) {
+      setError("Нэр, огноо, мэндчилгээ, дор хаяж нэг зургаа бүрэн оруулна уу.");
+      return;
+    }
+    setPublishingWithCode(true);
+    setError("");
+    try {
+      const response = await fetch("/api/publish", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code, draft }),
+      });
+      const result = (await response.json()) as {
+        id?: string;
+        publicSlug?: string;
+        recipientName?: string;
+        ownerToken?: string;
+        error?: string;
+      };
+      if (!response.ok || !result.publicSlug || !result.ownerToken) {
+        throw new Error(result.error || "Мэндчилгээ нийтэлж чадсангүй.");
+      }
+      try {
+        const entry = {
+          id: result.id ?? "",
+          token: result.ownerToken,
+          slug: result.publicSlug,
+          recipientName: result.recipientName ?? draft.recipientName,
+        };
+        const stored = window.localStorage.getItem(ownerKey);
+        const list = stored ? (JSON.parse(stored) as Array<typeof entry>) : [];
+        const filtered = list.filter((item) => item.slug !== entry.slug);
+        window.localStorage.setItem(
+          ownerKey,
+          JSON.stringify([entry, ...filtered].slice(0, 20)),
+        );
+      } catch {
+        /* ignore */
+      }
+      setPublishedFromCode({
+        publicSlug: result.publicSlug,
+        recipientName: result.recipientName ?? draft.recipientName,
+      });
+      setAccessCodeInput("");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Алдаа гарлаа.");
+    } finally {
+      setPublishingWithCode(false);
     }
   }
 
@@ -1328,6 +1444,62 @@ export function CreateGreetingApp() {
 
           {step === 2 && (
             <div className="form-stack">
+              {!resumeSaved && !resumeBannerDismissed && (
+                <aside className="resume-banner">
+                  <div className="resume-banner-copy">
+                    <Mail size={18} />
+                    <div>
+                      <strong>Одоо гарсан ч буцаад үргэлжлүүлэх боломжтой</strong>
+                      <small>
+                        Email өгвөл ноорогоо server-т хадгалаад үргэлжлүүлэх
+                        линкийг илгээе — өөр утаснаас ч нээж болно.
+                      </small>
+                    </div>
+                  </div>
+                  <form
+                    className="resume-banner-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void saveProgress();
+                    }}
+                  >
+                    <input
+                      type="email"
+                      value={saveEmail}
+                      onChange={(event) => setSaveEmail(event.target.value)}
+                      placeholder="you@example.com"
+                      disabled={savingDraft}
+                      aria-label="Email"
+                    />
+                    <button
+                      type="submit"
+                      className="resume-banner-primary"
+                      disabled={savingDraft || !saveEmail.trim()}
+                    >
+                      {savingDraft ? (
+                        <LoaderCircle size={14} className="spin" />
+                      ) : (
+                        <Mail size={14} />
+                      )}
+                      Линк илгээх
+                    </button>
+                    <button
+                      type="button"
+                      className="resume-banner-dismiss"
+                      onClick={dismissResumeBanner}
+                      disabled={savingDraft}
+                    >
+                      Дараа
+                    </button>
+                  </form>
+                </aside>
+              )}
+              {resumeSaved && saveNotice && (
+                <aside className="resume-banner resume-banner-done">
+                  <Check size={17} />
+                  <span>{saveNotice}</span>
+                </aside>
+              )}
               <section className="upload-panel">
                 <header>
                   <div>
@@ -1691,6 +1863,7 @@ export function CreateGreetingApp() {
             const scenes: Array<{ id: PreviewScene; label: string }> = [
               { id: "cover", label: "Cover" },
               { id: "countdown", label: "Countdown" },
+              { id: "photos", label: "Зурагууд" },
               { id: "letter", label: "Захидал" },
               { id: "music", label: "Дуу" },
               { id: "finale", label: "Төгсгөл" },
@@ -1873,6 +2046,70 @@ export function CreateGreetingApp() {
                       <ShieldCheck size={11} />
                       Encrypted checkout · Загварлах, preview үнэгүй
                     </small>
+                  </section>
+
+                  <section className="publish-code">
+                    <header>
+                      <strong>Надад нэг удаагийн код байгаа</strong>
+                      <small>
+                        Төлбөр төлсний дараа гарч ирсэн эсвэл найзаасаа авсан
+                        BDY- кодоо оруулаад шууд нийтэл.
+                      </small>
+                    </header>
+                    {publishedFromCode ? (
+                      <div className="publish-code-success">
+                        <CheckCircle2 size={16} />
+                        <div>
+                          <strong>Нийтэллээ!</strong>
+                          <a
+                            href={`/g/${publishedFromCode.publicSlug}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {publishedFromCode.recipientName}-ийн мэндчилгээ нээх
+                            <ExternalLink size={12} />
+                          </a>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          value={accessCodeInput}
+                          onChange={(event) =>
+                            setAccessCodeInput(
+                              event.target.value
+                                .toUpperCase()
+                                .replace(/[^A-Z0-9-]/g, "")
+                                .slice(0, 24),
+                            )
+                          }
+                          placeholder="BDY-XXXXXX"
+                          maxLength={24}
+                        />
+                        <button
+                          type="button"
+                          disabled={
+                            publishingWithCode ||
+                            !accessCodeInput.trim() ||
+                            !isDraftReady(draft)
+                          }
+                          onClick={() => void publishWithCode()}
+                        >
+                          {publishingWithCode ? (
+                            <>
+                              <LoaderCircle size={15} className="spin" />
+                              Нийтэлж байна...
+                            </>
+                          ) : (
+                            <>
+                              <Send size={15} />
+                              Код-оор нийтлэх
+                            </>
+                          )}
+                        </button>
+                      </>
+                    )}
                   </section>
 
                   <section className="publish-summary">
@@ -2387,6 +2624,9 @@ export function GreetingExperience({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [screen, setScreen] = useState<RecipientScreen>("envelope");
+  const [envelopeStage, setEnvelopeStage] = useState<"idle" | "opening">(
+    "idle",
+  );
   const [openedGifts, setOpenedGifts] = useState<string[]>([]);
   const [playing, setPlaying] = useState(false);
   const [reaction, setReaction] = useState<ReactionType | "">("");
@@ -2583,6 +2823,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
           className="recipient-brand"
           onClick={() => {
             setScreen("envelope");
+            setEnvelopeStage("idle");
             setOpenedGifts([]);
             setPlaying(false);
           }}
@@ -2601,6 +2842,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
           label="Дахин эхлэх"
           onClick={() => {
             setScreen("envelope");
+            setEnvelopeStage("idle");
             setOpenedGifts([]);
             setPlaying(false);
           }}
@@ -2641,21 +2883,33 @@ export function GreetingExperience({ slug }: { slug: string }) {
 
       <section className={`recipient-screen screen-${screen}`}>
         {screen === "envelope" && (
-          <div className="envelope-scene">
+          <div
+            className={`envelope-scene${envelopeStage === "opening" ? " is-opening" : ""}`}
+          >
             <p>{greeting.recipientName}-д</p>
-            <div className="envelope">
-              <span className="envelope-flap" />
-              <Mail size={47} />
-              <i>♥</i>
+            <div className="envelope-stage">
+              <div className="envelope-sparks" aria-hidden="true">
+                {Array.from({ length: 10 }, (_, index) => (
+                  <span key={index} />
+                ))}
+              </div>
+              <div className="envelope">
+                <span className="envelope-flap" />
+                <Mail size={47} />
+                <i>♥</i>
+              </div>
             </div>
             <Mascot gender={greeting.recipientGender} variant="intro" />
             <h1>Чамд нэг онцгой мэндчилгээ ирлээ</h1>
             <button
               type="button"
               className="primary-button"
-            onClick={() => {
-                setScreen("cake");
+              disabled={envelopeStage === "opening"}
+              onClick={() => {
+                if (envelopeStage === "opening") return;
+                setEnvelopeStage("opening");
                 void sendAction("open");
+                window.setTimeout(() => setScreen("cake"), 1100);
               }}
             >
               <Sparkles size={18} /> Дугтуй нээх

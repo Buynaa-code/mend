@@ -18,6 +18,7 @@ export type FontHint = "sans" | "serif" | "hand" | "display";
 export type PreviewScene =
   | "cover"
   | "countdown"
+  | "photos"
   | "letter"
   | "music"
   | "finale";

@@ -169,3 +169,88 @@ test("keeps many-photo recipient greetings responsive", async () => {
   assert.match(templateStyles, /\.recipient-experience \.screen-cover/);
   assert.match(templateStyles, /min-height: calc\(100svh - 94px\)/);
 });
+
+test("preview offers a photos gallery scene", async () => {
+  const greetingLib = await readFile(
+    new URL("../app/lib/greeting.ts", import.meta.url),
+    "utf8",
+  );
+  const creatorSource = await readFile(
+    new URL("../app/BirthdayApp.tsx", import.meta.url),
+    "utf8",
+  );
+  const styles = await readFile(
+    new URL("../app/globals.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(greetingLib, /^\s*\|\s*"photos"$/m);
+  assert.match(creatorSource, /scene === "photos"/);
+  assert.match(creatorSource, /id: "photos", label: "Зурагууд"/);
+  assert.match(styles, /\.preview-photo-gallery/);
+});
+
+test("publish endpoint accepts one-time code with optional draft", async () => {
+  const publishRoute = await readFile(
+    new URL("../app/api/publish/route.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(publishRoute, /findAccessCodeByCode/);
+  assert.match(publishRoute, /code\?: string;\s*draft\?: GreetingDraft;/);
+  assert.match(publishRoute, /Нэг удаагийн код дутуу байна/);
+  assert.match(publishRoute, /Энэ код аль хэдийн ашиглагдсан байна/);
+  assert.doesNotMatch(publishRoute, /paymentId\?: string/);
+});
+
+test("creator exposes a manual one-time code publish flow", async () => {
+  const creatorSource = await readFile(
+    new URL("../app/BirthdayApp.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(creatorSource, /Надад нэг удаагийн код байгаа/);
+  assert.match(creatorSource, /publishWithCode/);
+  assert.match(creatorSource, /body: JSON\.stringify\(\{ code, draft \}\)/);
+  assert.match(creatorSource, /placeholder="BDY-XXXXXX"/);
+});
+
+test("admin route serves the email login form", async () => {
+  const response = await render("/admin");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /Админ нэвтрэлт/);
+  assert.match(html, /type="email"/);
+  assert.doesNotMatch(html, /ADMIN_API_SECRET/);
+});
+
+test("admin auth allowlists emails and mints signed session tokens", async () => {
+  const adminHelper = await readFile(
+    new URL("../app/lib/server/admin.ts", import.meta.url),
+    "utf8",
+  );
+  const loginRoute = await readFile(
+    new URL("../app/api/admin/login/route.ts", import.meta.url),
+    "utf8",
+  );
+  const codesRoute = await readFile(
+    new URL("../app/api/admin/access-codes/route.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(adminHelper, /gbuyandelger277@gmail\.com/);
+  assert.match(adminHelper, /signValue\(secret, `admin:\$\{normalizeEmail\(email\)\}`\)/);
+  assert.match(adminHelper, /constantTimeEqual\(expected, supplied\)/);
+  assert.match(loginRoute, /isAdminEmail/);
+  assert.match(loginRoute, /deriveAdminToken/);
+  assert.match(codesRoute, /requireAdmin/);
+  assert.doesNotMatch(codesRoute, /constantTimeEqual\(expected, supplied\)/);
+});
+
+test("payment page auto-publishes using the access code, not paymentId", async () => {
+  const paymentSource = await readFile(
+    new URL("../app/PaymentApp.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(paymentSource, /body: JSON\.stringify\(\{ code \}\)/);
+  assert.match(paymentSource, /publishGreeting\(result\.payment\.accessCode\)/);
+  assert.doesNotMatch(paymentSource, /body: JSON\.stringify\(\{ paymentId: id \}\)/);
+});

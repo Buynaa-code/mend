@@ -42,12 +42,15 @@ export type PaymentRow = {
 export type AccessCodeRow = {
   id: string;
   payment_id: string;
+  source: "paid" | "manual";
   code: string;
   status: "issued" | "valid" | "used" | "expired" | "revoked" | "refunded";
   issued_at: string;
   expires_at: string | null;
   used_at: string | null;
   greeting_id: string | null;
+  label: string | null;
+  created_by: string | null;
 };
 
 export type PaymentAccess = {

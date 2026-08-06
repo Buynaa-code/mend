@@ -1,12 +1,13 @@
 import { ensureSchema, getDb } from "../../../db";
 import { type GreetingDraft } from "../../lib/greeting";
+import {
+  findAccessCodeByCode,
+  normalizeAccessCode,
+} from "../../lib/server/access-codes";
 import { cleanDraft, validateDraft } from "../../lib/server/draft";
 import {
   deriveOwnerToken,
-  getAccessCode,
   jsonError,
-  PaymentAccessError,
-  requirePaymentAccess,
 } from "../../lib/server/payments";
 import {
   enforceRateLimit,
@@ -33,28 +34,47 @@ function createSlug() {
 export async function POST(request: Request) {
   try {
     await ensureSchema();
-    const payload = (await request.json()) as { paymentId?: string };
-    const paymentId = String(payload.paymentId ?? "").trim();
-    if (!paymentId) return jsonError("Захиалгын ID дутуу байна.", 400);
-    await enforceRateLimit(request, `publish:${paymentId}`, 10, 15 * 60_000);
+    const payload = (await request.json()) as {
+      code?: string;
+      draft?: GreetingDraft;
+    };
+    const rawCode = String(payload.code ?? "").trim();
+    const normalizedCode = normalizeAccessCode(rawCode);
+    if (!normalizedCode) {
+      return jsonError("Нэг удаагийн код дутуу байна.", 400);
+    }
+    await enforceRateLimit(request, `publish:${normalizedCode}`, 10, 15 * 60_000);
 
-    const access = await requirePaymentAccess(request, paymentId);
-    if (access.payment.status !== "succeeded") {
-      return jsonError("Төлбөр backend дээр баталгаажаагүй байна.", 402);
+    const code = await findAccessCodeByCode(normalizedCode);
+    if (!code) return jsonError("Кодыг олсонгүй.", 404);
+    if (!["issued", "valid"].includes(code.status)) {
+      if (code.status === "used") {
+        return jsonError("Энэ код аль хэдийн ашиглагдсан байна.", 409);
+      }
+      return jsonError("Энэ кодын хүчин төгөлдөр байдал алдагдсан.", 410);
     }
 
     const db = await getDb();
+    if (code.expires_at && Date.parse(code.expires_at) <= Date.now()) {
+      await db
+        .prepare(
+          "UPDATE access_codes SET status = 'expired' WHERE id = ? AND status IN ('issued', 'valid')",
+        )
+        .bind(code.id)
+        .run();
+      return jsonError("Кодын хугацаа дууссан байна.", 410);
+    }
+
     const existing = await db
       .prepare(`
         SELECT g.id, g.public_slug, g.recipient_name, g.recipient_gender
-        FROM greeting_private gp
-        JOIN greetings g ON g.id = gp.greeting_id
-        WHERE gp.payment_id = ?
+        FROM greetings g
+        WHERE g.access_code_id = ?
         LIMIT 1
       `)
-      .bind(paymentId)
+      .bind(code.id)
       .first<ExistingPublication>();
-    const ownerToken = await deriveOwnerToken(paymentId);
+    const ownerToken = await deriveOwnerToken(code.payment_id);
     if (existing) {
       return Response.json({
         id: existing.id,
@@ -65,34 +85,36 @@ export async function POST(request: Request) {
       });
     }
 
-    const code = await getAccessCode(paymentId);
-    if (!code || !["issued", "valid"].includes(code.status)) {
-      return jsonError("Нийтлэх нэг удаагийн эрх бэлэн биш байна.", 409);
+    let draft: GreetingDraft | null = null;
+    if (payload.draft) {
+      try {
+        draft = cleanDraft(payload.draft);
+      } catch {
+        return jsonError("Мэндчилгээ буруу форматтай байна.", 400);
+      }
+    } else if (code.source === "paid") {
+      const storedDraft = await db
+        .prepare("SELECT content_json, owner_email FROM drafts WHERE id = ? LIMIT 1")
+        .bind(await draftIdForPayment(code.payment_id))
+        .first<DraftRow>();
+      if (!storedDraft) return jsonError("Хадгалсан ноорог олдсонгүй.", 404);
+      try {
+        draft = cleanDraft(JSON.parse(storedDraft.content_json) as GreetingDraft);
+      } catch {
+        return jsonError("Ноорог гэмтсэн байна.", 500);
+      }
     }
-    if (code.expires_at && Date.parse(code.expires_at) <= Date.now()) {
-      await db
-        .prepare(
-          "UPDATE access_codes SET status = 'expired' WHERE id = ? AND status IN ('issued', 'valid')",
-        )
-        .bind(code.id)
-        .run();
-      return jsonError("Нийтлэх эрхийн хугацаа дууссан байна.", 410);
-    }
-
-    const storedDraft = await db
-      .prepare("SELECT content_json, owner_email FROM drafts WHERE id = ? LIMIT 1")
-      .bind(access.payment.draft_id)
-      .first<DraftRow>();
-    if (!storedDraft) return jsonError("Ноорог олдсонгүй.", 404);
-
-    let draft: GreetingDraft;
-    try {
-      draft = cleanDraft(JSON.parse(storedDraft.content_json) as GreetingDraft);
-    } catch {
-      return jsonError("Ноорог гэмтсэн байна.", 500);
+    if (!draft) {
+      return jsonError("Нийтлэх мэндчилгээгээ илгээнэ үү.", 400);
     }
     const validationError = validateDraft(draft);
     if (validationError) return jsonError(validationError, 400);
+
+    const draftForOwner = await db
+      .prepare("SELECT owner_email FROM drafts WHERE id = ? LIMIT 1")
+      .bind(await draftIdForPayment(code.payment_id))
+      .first<{ owner_email: string }>();
+    const ownerEmail = draftForOwner?.owner_email ?? "";
 
     const now = new Date().toISOString();
     const greetingId = crypto.randomUUID();
@@ -113,7 +135,7 @@ export async function POST(request: Request) {
             )
             SELECT ?, ?, ac.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?
             FROM access_codes ac
-            WHERE ac.id = ? AND ac.payment_id = ?
+            WHERE ac.id = ? AND ac.code = ?
               AND ac.status IN ('issued', 'valid') AND ac.used_at IS NULL
               AND (ac.expires_at IS NULL OR ac.expires_at > ?)
           `)
@@ -135,7 +157,7 @@ export async function POST(request: Request) {
             now,
             now,
             code.id,
-            paymentId,
+            normalizedCode,
             now,
           ),
         db
@@ -149,9 +171,9 @@ export async function POST(request: Request) {
           `)
           .bind(
             greetingId,
-            storedDraft.owner_email,
+            ownerEmail,
             ownerTokenHash,
-            paymentId,
+            code.payment_id,
             now,
             greetingId,
           ),
@@ -159,16 +181,11 @@ export async function POST(request: Request) {
           .prepare(`
             UPDATE access_codes
             SET status = 'used', used_at = ?, greeting_id = ?
-            WHERE id = ? AND payment_id = ? AND status IN ('issued', 'valid')
+            WHERE id = ? AND status IN ('issued', 'valid')
               AND used_at IS NULL
               AND EXISTS (SELECT 1 FROM greetings WHERE id = ?)
           `)
-          .bind(now, greetingId, code.id, paymentId, greetingId),
-        db
-          .prepare(
-            "UPDATE drafts SET status = 'published' WHERE id = ? AND EXISTS (SELECT 1 FROM greetings WHERE id = ?)",
-          )
-          .bind(access.payment.draft_id, greetingId),
+          .bind(now, greetingId, code.id, greetingId),
         db
           .prepare(`
             INSERT INTO notifications (
@@ -176,36 +193,37 @@ export async function POST(request: Request) {
             )
             SELECT ?, 'greeting_published', ?, ?, 'queued', ?, NULL
             WHERE EXISTS (SELECT 1 FROM greetings WHERE id = ?)
+              AND length(?) > 0
           `)
           .bind(
             crypto.randomUUID(),
-            storedDraft.owner_email,
+            ownerEmail,
             JSON.stringify({
-              paymentId,
-              orderId: access.payment.order_id,
-              code: code.code,
+              paymentId: code.payment_id,
+              code: normalizedCode,
               publicSlug,
+              source: code.source,
             }),
             now,
             greetingId,
+            ownerEmail,
           ),
       ]);
       const changes = Number(
         (results[0].meta as { changes?: number } | undefined)?.changes ?? 0,
       );
       if (!changes) {
-        return jsonError("Энэ эрх аль хэдийн ашиглагдсан байна.", 409);
+        return jsonError("Энэ код аль хэдийн ашиглагдсан байна.", 409);
       }
     } catch {
       const raced = await db
         .prepare(`
           SELECT g.id, g.public_slug, g.recipient_name, g.recipient_gender
-          FROM greeting_private gp
-          JOIN greetings g ON g.id = gp.greeting_id
-          WHERE gp.payment_id = ?
+          FROM greetings g
+          WHERE g.access_code_id = ?
           LIMIT 1
         `)
-        .bind(paymentId)
+        .bind(code.id)
         .first<ExistingPublication>();
       if (raced) {
         return Response.json({
@@ -216,7 +234,7 @@ export async function POST(request: Request) {
           ownerToken,
         });
       }
-      return jsonError("Нийтлэх эрхийг зарцуулж чадсангүй.", 409);
+      return jsonError("Мэндчилгээг нийтэлж чадсангүй.", 409);
     }
 
     return Response.json(
@@ -230,9 +248,6 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (caught) {
-    if (caught instanceof PaymentAccessError) {
-      return jsonError(caught.message, caught.status);
-    }
     if (caught instanceof RateLimitError) {
       return jsonError(caught.message, caught.status);
     }
@@ -240,4 +255,13 @@ export async function POST(request: Request) {
       caught instanceof Error ? caught.message : "Мэндчилгээ нийтэлж чадсангүй.";
     return jsonError(message, 500);
   }
+}
+
+async function draftIdForPayment(paymentId: string) {
+  const db = await getDb();
+  const row = await db
+    .prepare("SELECT draft_id FROM payments WHERE id = ? LIMIT 1")
+    .bind(paymentId)
+    .first<{ draft_id: string }>();
+  return row?.draft_id ?? "";
 }

@@ -155,19 +155,16 @@ export function PaymentApp() {
   const [showAllBanks, setShowAllBanks] = useState(false);
   const publishLock = useRef(false);
 
-  const publishGreeting = useCallback(async (id: string) => {
-    if (publishLock.current) return;
+  const publishGreeting = useCallback(async (code: string) => {
+    if (!code || publishLock.current) return;
     publishLock.current = true;
     setPublishing(true);
     setError("");
     try {
       const response = await fetch("/api/publish", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...paymentCredential(id),
-        },
-        body: JSON.stringify({ paymentId: id }),
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code }),
       });
       const result = (await response.json()) as Publication & {
         error?: string;
@@ -215,8 +212,11 @@ export function PaymentApp() {
       setLoading(false);
       if (result.payment.publication) {
         saveOwner(result.payment.publication);
-      } else if (result.payment.status === "succeeded") {
-        await publishGreeting(id);
+      } else if (
+        result.payment.status === "succeeded" &&
+        result.payment.accessCode
+      ) {
+        await publishGreeting(result.payment.accessCode);
       }
     },
     [publishGreeting],
@@ -647,7 +647,7 @@ export function PaymentApp() {
                   type="button"
                   className="primary-button"
                   disabled={publishing}
-                  onClick={() => void publishGreeting(payment.id)}
+                  onClick={() => void publishGreeting(payment.accessCode)}
                 >
                   {publishing ? (
                     <LoaderCircle size={17} className="spin" />
