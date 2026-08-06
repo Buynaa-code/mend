@@ -207,10 +207,34 @@ test("creator exposes a manual one-time code publish flow", async () => {
     new URL("../app/BirthdayApp.tsx", import.meta.url),
     "utf8",
   );
-  assert.match(creatorSource, /Надад нэг удаагийн код байгаа/);
+  assert.match(creatorSource, /Код-оор нийтлэх/);
   assert.match(creatorSource, /publishWithCode/);
   assert.match(creatorSource, /body: JSON\.stringify\(\{ code, draft \}\)/);
   assert.match(creatorSource, /placeholder="BDY-XXXXXX"/);
+});
+
+test("publish step explains the pay-to-code-to-publish flow", async () => {
+  const creatorSource = await readFile(
+    new URL("../app/BirthdayApp.tsx", import.meta.url),
+    "utf8",
+  );
+  const paymentSource = await readFile(
+    new URL("../app/PaymentApp.tsx", import.meta.url),
+    "utf8",
+  );
+  const styles = await readFile(
+    new URL("../app/globals.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(creatorSource, /publish-flow-steps/);
+  assert.match(creatorSource, /Нэг удаагийн код/);
+  assert.match(creatorSource, /5,500₮ төлж код авах/);
+  assert.match(creatorSource, /Алхам 1/);
+  assert.match(creatorSource, /Алхам 2/);
+  assert.match(paymentSource, /Таны нэг удаагийн код/);
+  assert.match(styles, /\.publish-flow-steps/);
+  assert.match(styles, /\.payment-code-card/);
 });
 
 test("admin route serves the email login form", async () => {

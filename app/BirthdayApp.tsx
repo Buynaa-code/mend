@@ -1919,15 +1919,56 @@ export function CreateGreetingApp() {
                     );
                   })()}
 
+                  <section className="publish-flow">
+                    <small className="publish-flow-title">
+                      Нийтлэх урсгал
+                    </small>
+                    <ol className="publish-flow-steps">
+                      <li>
+                        <span className="publish-flow-badge">
+                          <QrCode size={13} />
+                        </span>
+                        <div>
+                          <strong>Төлбөр төлнө</strong>
+                          <small>5,500₮ · QPay + банкууд</small>
+                        </div>
+                      </li>
+                      <li className="publish-flow-arrow" aria-hidden="true">
+                        <ArrowRight size={14} />
+                      </li>
+                      <li>
+                        <span className="publish-flow-badge accent">
+                          <Gift size={13} />
+                        </span>
+                        <div>
+                          <strong>Нэг удаагийн код</strong>
+                          <small>BDY-XXXXXX автомат үүснэ</small>
+                        </div>
+                      </li>
+                      <li className="publish-flow-arrow" aria-hidden="true">
+                        <ArrowRight size={14} />
+                      </li>
+                      <li>
+                        <span className="publish-flow-badge success">
+                          <Send size={13} />
+                        </span>
+                        <div>
+                          <strong>Мэндчилгээ нээнэ</strong>
+                          <small>Хуваалцах линк идэвхэждэг</small>
+                        </div>
+                      </li>
+                    </ol>
+                  </section>
+
                   <section className="publish-invoice">
                     <header>
                       <div>
-                        <small>Merchant</small>
-                        <strong>mend.</strong>
+                        <span className="publish-step-tag">Алхам 1</span>
+                        <strong>Төлбөр төлж код авах</strong>
                       </div>
                       <div className="publish-invoice-provider">
                         <ShieldCheck size={12} />
-                        Powered by QPay
+                        QPay
                       </div>
                     </header>
 
@@ -2037,23 +2078,28 @@ export function CreateGreetingApp() {
                       ) : (
                         <>
                           <QrCode size={17} />
-                          5,500₮ төлөх
+                          5,500₮ төлж код авах
                         </>
                       )}
                     </button>
 
                     <small className="publish-invoice-note">
                       <ShieldCheck size={11} />
-                      Encrypted checkout · Загварлах, preview үнэгүй
+                      Encrypted checkout · Төлбөрийн дараа BDY- код автоматаар гарч ирнэ
                     </small>
                   </section>
 
+                  <div className="publish-or" aria-hidden="true">
+                    <span>эсвэл кодтой байвал</span>
+                  </div>
+
                   <section className="publish-code">
                     <header>
-                      <strong>Надад нэг удаагийн код байгаа</strong>
+                      <span className="publish-step-tag muted">Алхам 2</span>
+                      <strong>Код-оор нийтлэх</strong>
                       <small>
-                        Төлбөр төлсний дараа гарч ирсэн эсвэл найзаасаа авсан
-                        BDY- кодоо оруулаад шууд нийтэл.
+                        Төлсний дараа авсан эсвэл найз/админ-аас өгсөн BDY- код
+                        байвал энд оруулна уу.
                       </small>
                     </header>
                     {publishedFromCode ? (

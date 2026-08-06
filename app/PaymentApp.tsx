@@ -424,6 +424,15 @@ export function PaymentApp() {
                 Dashboard
               </a>
             </div>
+            {payment.accessCode && (
+              <div className="payment-success-receipt">
+                <TicketCheck size={14} />
+                <div>
+                  <small>Ашиглагдсан код (receipt)</small>
+                  <code>{payment.accessCode}</code>
+                </div>
+              </div>
+            )}
           </section>
         ) : payment ? (
           <div className="payment-layout">
@@ -642,6 +651,32 @@ export function PaymentApp() {
               </div>
               <small>Order ID</small>
               <code>{payment.orderId}</code>
+              {payment.status === "succeeded" && payment.accessCode && (
+                <div className="payment-code-card">
+                  <div className="payment-code-head">
+                    <TicketCheck size={14} />
+                    <span>Таны нэг удаагийн код</span>
+                  </div>
+                  <div className="payment-code-value">
+                    <code>{payment.accessCode}</code>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      title="Код хуулах"
+                      onClick={() =>
+                        navigator.clipboard?.writeText(payment.accessCode)
+                      }
+                    >
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                  <small>
+                    Энэ код-оор л мэндчилгээ нээгддэг. Автомат нийтлэхэд
+                    ашиглагдана — гар аргаар нийтлэх бол{" "}
+                    <a href="/create">/create</a>-д оруулна.
+                  </small>
+                </div>
+              )}
               {payment.status === "succeeded" && !payment.publication && (
                 <button
                   type="button"

@@ -8863,6 +8863,143 @@ img {
   font-size: 13px;
 }
 
+.publish-flow {
+  padding: 14px 16px 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #eef1ff, #f6effc);
+  border: 1px solid #dedbf1;
+}
+
+.publish-flow-title {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6a6580;
+  margin-bottom: 10px;
+}
+
+.publish-flow-steps {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.publish-flow-steps > li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  font-size: 11px;
+  color: #3e3959;
+}
+
+.publish-flow-steps > li strong {
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.publish-flow-steps > li small {
+  font-size: 10px;
+  color: #6a6580;
+  line-height: 1.2;
+}
+
+.publish-flow-steps > li.publish-flow-arrow {
+  color: #a8a2c1;
+}
+
+.publish-flow-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: #4b3fa5;
+  color: white;
+  box-shadow: 0 4px 12px rgba(75, 63, 165, 0.25);
+}
+
+.publish-flow-badge.accent {
+  background: #f0a832;
+  box-shadow: 0 4px 12px rgba(240, 168, 50, 0.35);
+}
+
+.publish-flow-badge.success {
+  background: #2a9d59;
+  box-shadow: 0 4px 12px rgba(42, 157, 89, 0.28);
+}
+
+@media (max-width: 520px) {
+  .publish-flow-steps {
+    grid-template-columns: 1fr;
+  }
+  .publish-flow-steps > li.publish-flow-arrow {
+    transform: rotate(90deg);
+    justify-self: center;
+  }
+}
+
+.publish-step-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #4b3fa5;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.publish-step-tag.muted {
+  background: #d8d5e6;
+  color: #4b3fa5;
+}
+
+.publish-or {
+  position: relative;
+  text-align: center;
+  margin: 6px 0 2px;
+}
+
+.publish-or::before,
+.publish-or::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: calc(50% - 90px);
+  height: 1px;
+  background: #dedbf1;
+}
+
+.publish-or::before {
+  left: 0;
+}
+
+.publish-or::after {
+  right: 0;
+}
+
+.publish-or span {
+  display: inline-block;
+  padding: 2px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #6a6580;
+  background: white;
+  border-radius: 999px;
+}
+
 .publish-code {
   display: flex;
   flex-direction: column;
@@ -8936,4 +9073,90 @@ img {
   color: #1c5a26;
   font-weight: 700;
   margin-top: 2px;
+}
+
+.payment-code-card {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fff7e0, #ffe4a3);
+  color: #5a3d0f;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.payment-code-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.payment-code-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+}
+
+.payment-code-value code {
+  flex: 1;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #3b2708;
+}
+
+.payment-code-value .icon-button {
+  background: transparent;
+  border: none;
+  color: #5a3d0f;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.payment-code-card small {
+  font-size: 10px;
+  line-height: 1.35;
+  color: #6a4a12;
+}
+
+.payment-code-card small a {
+  color: #4b3fa5;
+  font-weight: 700;
+}
+
+.payment-success-receipt {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(75, 63, 165, 0.06);
+  color: #3e3959;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  align-self: center;
+}
+
+.payment-success-receipt small {
+  display: block;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6a6580;
+  margin-bottom: 2px;
+}
+
+.payment-success-receipt code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
