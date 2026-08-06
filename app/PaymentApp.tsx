@@ -438,17 +438,16 @@ export function PaymentApp() {
                     <div className="inapp-notice">
                       <strong>
                         {inAppBrowser.appName} доторх browser нь банкны аппыг
-                        нээхгүй
+                        шууд нээж чадахгүй
                       </strong>
                       <p>
                         <b>Хамгийн хурдан:</b> доорх QR-ыг банкны аппаараа шууд
-                        уншуулаад төлбөрөө хий. Bank товч Messenger дотор
-                        ажиллахгүй тул нуусан.
+                        уншуулаад төлбөрөө хий.
                       </p>
                       <p>
-                        Эсвэл энэ хуудсыг утасныхаа
+                        Эсвэл доорх банкны товчийг дарвал энэ хуудсыг утасны
                         {inAppBrowser.isIos ? " Safari" : " Chrome"}-д нээгээд
-                        bank товчийг ашиглаж болно:
+                        танд банкны товчоо дарах боломж олгоно:
                       </p>
                       {inAppBrowser.isIos && (
                         <ol className="inapp-notice-steps">
@@ -516,7 +515,7 @@ export function PaymentApp() {
                     </button>
                   </div>
 
-                  {hasBankLinks && !inAppBrowser && (
+                  {hasBankLinks && (
                     <div className="bank-links">
                       <span>эсвэл банкны аппаа шууд нээх:</span>
                       {primaryBank && (
