@@ -236,6 +236,27 @@ export function PaymentApp() {
           `/pay?payment=${encodeURIComponent(id)}`,
         );
       }
+      // Bank taps in Messenger for iOS bounce the page to Safari with the
+      // intended bank scheme carried in the fragment; once Safari is in
+      // charge, re-launch it automatically so the buyer only sees one tap.
+      const hashMatch = window.location.hash.match(/^#bank=(.+)$/);
+      if (hashMatch) {
+        window.history.replaceState(
+          {},
+          "",
+          `${window.location.pathname}${window.location.search}`,
+        );
+        const pendingBank = decodeURIComponent(hashMatch[1]);
+        const stillInMetaApp =
+          /FBAN|FBAV|FB_IAB|FBIOS|Messenger|Orca-/i.test(
+            navigator.userAgent || "",
+          );
+        if (!stillInMetaApp) {
+          window.setTimeout(() => {
+            window.location.href = pendingBank;
+          }, 350);
+        }
+      }
       setPaymentId(id);
       if (!id) {
         setLoading(false);
@@ -279,20 +300,33 @@ export function PaymentApp() {
   // Chrome for Android no longer launches bare custom-scheme hrefs from anchor
   // clicks, so wrap every Android tap in `intent://` — that reaches the OS
   // chooser and opens the bank app in regular Chrome and inside Meta apps
-  // alike. iOS has no equivalent (Meta blocks scheme launches outright, Safari
-  // handles the raw scheme itself), so leave the direct href alone there.
+  // alike. Messenger/Facebook for iOS blocks custom schemes outright, so hand
+  // the whole page off to Safari via `x-safari-https://` and carry the target
+  // scheme in the fragment; the page auto-relaunches it once Safari owns the
+  // tab. Instagram for iOS lets the raw scheme through, so leave it alone.
   function handleBankClick(
     event: React.MouseEvent<HTMLAnchorElement>,
     bankLink: string,
   ) {
-    const isAndroid = /Android/i.test(navigator.userAgent || "");
-    if (!isAndroid) return;
+    const userAgent = navigator.userAgent || "";
+    const isAndroid = /Android/i.test(userAgent);
+    const isIos = /iPhone|iPad|iPod/i.test(userAgent);
+    const isMetaBlockedIos =
+      isIos && /FBAN|FBAV|FB_IAB|FBIOS|Messenger|Orca-/i.test(userAgent);
     const match = bankLink.match(/^([a-z][a-z0-9+.-]*):\/\/(.*)$/i);
     if (!match) return;
     const [, scheme, rest] = match;
     if (scheme === "http" || scheme === "https") return;
-    event.preventDefault();
-    window.location.href = `intent://${rest}#Intent;scheme=${scheme};end`;
+    if (isAndroid) {
+      event.preventDefault();
+      window.location.href = `intent://${rest}#Intent;scheme=${scheme};end`;
+      return;
+    }
+    if (isMetaBlockedIos) {
+      event.preventDefault();
+      const { host, pathname, search } = window.location;
+      window.location.href = `x-safari-https://${host}${pathname}${search}#bank=${encodeURIComponent(bankLink)}`;
+    }
   }
 
   async function copyOrderId() {
