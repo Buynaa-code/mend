@@ -12,7 +12,6 @@ import {
   ExternalLink,
   Gift,
   LoaderCircle,
-  Mail,
   QrCode,
   RefreshCw,
   ShieldCheck,
@@ -146,9 +145,6 @@ export function PaymentApp() {
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
-  const [recoveryEmail, setRecoveryEmail] = useState("");
-  const [recoveryOrder, setRecoveryOrder] = useState("");
-  const [recoverySent, setRecoverySent] = useState(false);
   const [inAppBrowser, setInAppBrowser] = useState<{
     appName: string;
     externalUrl: string;
@@ -269,28 +265,6 @@ export function PaymentApp() {
     }, 5_000);
     return () => window.clearInterval(timer);
   }, [loadStatus, payment, paymentId]);
-
-  async function requestRecovery() {
-    setError("");
-    setRecoverySent(false);
-    const response = await fetch("/api/recovery", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        email: recoveryEmail,
-        orderId: recoveryOrder,
-      }),
-    });
-    const result = (await response.json()) as {
-      message?: string;
-      error?: string;
-    };
-    if (!response.ok) {
-      setError(result.error || "Сэргээх хүсэлт илгээж чадсангүй.");
-      return;
-    }
-    setRecoverySent(true);
-  }
 
   async function copyPayLink() {
     try {
@@ -649,40 +623,7 @@ export function PaymentApp() {
               )}
             </aside>
           </div>
-        ) : (
-          <section className="recovery-panel">
-            <Mail size={28} />
-            <h2>Захиалгаа сэргээх</h2>
-            <p>Төлбөр хийсэн email болон Order ID-гаа оруулна уу.</p>
-            <label>
-              <span>Email</span>
-              <input
-                type="email"
-                value={recoveryEmail}
-                onChange={(event) => setRecoveryEmail(event.target.value)}
-                placeholder="you@example.com"
-              />
-            </label>
-            <label>
-              <span>Order ID</span>
-              <input
-                value={recoveryOrder}
-                onChange={(event) => setRecoveryOrder(event.target.value)}
-                placeholder="BDY..."
-              />
-            </label>
-            <button
-              type="button"
-              className="primary-button"
-              onClick={() => void requestRecovery()}
-            >
-              <Mail size={17} /> Сэргээх холбоос авах
-            </button>
-            {recoverySent && (
-              <small>Мэдээлэл таарсан бол сэргээх холбоос email-р очно.</small>
-            )}
-          </section>
-        )}
+        ) : null}
         {error && <p className="form-error payment-error">{error}</p>}
         {isPending && (
           <p className="payment-security-note">
