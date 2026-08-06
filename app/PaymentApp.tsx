@@ -302,12 +302,21 @@ export function PaymentApp() {
     }
   }
 
-  // Inside a Meta in-app browser a bank deeplink resolves to nothing at all, so
-  // send the buyer to the real browser instead of letting the tap die silently.
-  function handleBankClick(event: React.MouseEvent<HTMLAnchorElement>) {
-    if (!inAppBrowser) return;
+  // Meta's in-app browser silently swallows a bare custom scheme href, but on
+  // Android an `intent://` wrapper hits the OS-level chooser and can still open
+  // the bank app even from inside Messenger. iOS has no equivalent — Meta
+  // blocks scheme launches outright — so leave the direct scheme href alone
+  // and let the buyer fall back to the QR / open-in-Safari path.
+  function handleBankClick(
+    event: React.MouseEvent<HTMLAnchorElement>,
+    bankLink: string,
+  ) {
+    if (!inAppBrowser || inAppBrowser.isIos) return;
+    const match = bankLink.match(/^([a-z][a-z0-9+.-]*):\/\/(.*)$/i);
+    if (!match) return;
+    const [, scheme, rest] = match;
     event.preventDefault();
-    window.location.href = inAppBrowser.externalUrl;
+    window.location.href = `intent://${rest}#Intent;scheme=${scheme};end`;
   }
 
   async function copyOrderId() {
@@ -522,7 +531,9 @@ export function PaymentApp() {
                         <a
                           className="bank-links-primary"
                           href={primaryBank.link}
-                          onClick={handleBankClick}
+                          onClick={(event) =>
+                            handleBankClick(event, primaryBank.link)
+                          }
                         >
                           {primaryBank.logo ? (
                             <img src={primaryBank.logo} alt="" />
@@ -537,7 +548,7 @@ export function PaymentApp() {
                           <a
                             href={bank.link}
                             key={`${bank.name}-${bank.link}`}
-                            onClick={handleBankClick}
+                            onClick={(event) => handleBankClick(event, bank.link)}
                           >
                             {bank.logo ? <img src={bank.logo} alt="" /> : <QrCode size={19} />}
                             <span>{bank.description || bank.name}</span>
