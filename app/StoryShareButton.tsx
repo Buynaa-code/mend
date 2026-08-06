@@ -147,6 +147,25 @@ function wrapText(
   return startY + lines.length * lineHeight;
 }
 
+function isColorLight(hex: string) {
+  const normalized = hex.trim().replace(/^#/, "");
+  if (normalized.length !== 3 && normalized.length !== 6) return false;
+  const expanded =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : normalized;
+  const r = parseInt(expanded.slice(0, 2), 16);
+  const g = parseInt(expanded.slice(2, 4), 16);
+  const b = parseInt(expanded.slice(4, 6), 16);
+  // Perceptual luminance — templates with near-white text (e.g. "party") return
+  // a value above 0.6, so we swap to a dark colour to stay readable on the
+  // pale surface panel.
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6;
+}
+
 async function createStoryFile(greeting: StoryGreeting) {
   const canvas = document.createElement("canvas");
   canvas.width = STORY_WIDTH;
@@ -155,6 +174,11 @@ async function createStoryFile(greeting: StoryGreeting) {
   if (!context) throw new Error("Story зураг үүсгэж чадсангүй.");
 
   const template = getTemplate(greeting.template);
+  const textOnSurface = isColorLight(template.text)
+    ? isColorLight(template.background)
+      ? "#1f1533"
+      : template.background
+    : template.text;
   context.fillStyle = template.background;
   context.fillRect(0, 0, STORY_WIDTH, STORY_HEIGHT);
 
@@ -222,7 +246,7 @@ async function createStoryFile(greeting: StoryGreeting) {
   context.stroke();
 
   const recipient = greeting.recipientName.trim() || "Чамдаа";
-  context.fillStyle = template.text;
+  context.fillStyle = textOnSurface;
   const headlineSize = fitHeadline(context, recipient, 876);
   context.font = `900 ${headlineSize}px Nunito, system-ui, sans-serif`;
   context.fillText(recipient, 102, 1194);
@@ -231,7 +255,7 @@ async function createStoryFile(greeting: StoryGreeting) {
   context.font = "900 42px Nunito, system-ui, sans-serif";
   context.fillText("Төрсөн өдрийн мэнд!", 104, 1262);
 
-  context.fillStyle = template.text;
+  context.fillStyle = textOnSurface;
   context.globalAlpha = 0.82;
   context.font = "600 36px Nunito, system-ui, sans-serif";
   const message =
@@ -254,7 +278,7 @@ async function createStoryFile(greeting: StoryGreeting) {
   context.fillText("Линкээр орж бүтэн мэндчилгээг үзээрэй  →", STORY_WIDTH / 2, 1746);
   context.textAlign = "left";
 
-  context.fillStyle = template.text;
+  context.fillStyle = textOnSurface;
   context.globalAlpha = 0.52;
   context.font = "700 25px Nunito, system-ui, sans-serif";
   context.fillText("Story format  ·  1080 × 1920", 102, 1830);
