@@ -197,21 +197,36 @@
       }, 4500);
     }
 
-    if (buttonEl) {
-      buttonEl.addEventListener("click", function () {
-        if (Date.now() - firstGestureAt < 350) {
-          setMuted(false);
-          return;
-        }
-        if (!wantPlay || !bgStarted) {
-          muted = false;
-          firstGesture();
-          setMuted(false);
-        } else {
-          setMuted(!muted);
-        }
-      });
+    function toggle() {
+      if (destroyed) return;
+      if (Date.now() - firstGestureAt < 350) {
+        setMuted(false);
+        return;
+      }
+      if (!wantPlay || !bgStarted) {
+        muted = false;
+        firstGesture();
+        setMuted(false);
+      } else {
+        setMuted(!muted);
+      }
     }
+
+    var clickHandler = function () { toggle(); };
+    var attachedBtn = null;
+    function attachButton(el) {
+      if (attachedBtn === el) return;
+      if (attachedBtn) {
+        try { attachedBtn.removeEventListener("click", clickHandler); } catch { /* noop */ }
+      }
+      attachedBtn = el || null;
+      if (attachedBtn) {
+        attachedBtn.addEventListener("click", clickHandler);
+      }
+      buttonEl = attachedBtn;
+    }
+
+    attachButton(buttonEl);
 
     loadYTApi();
     updateSoundUI();
@@ -220,10 +235,18 @@
       setVideoId: setVideoId,
       setMuted: setMuted,
       start: firstGesture,
+      toggle: toggle,
+      attachButton: attachButton,
+      attachIcon: function (el) { iconEl = el || null; updateSoundUI(); },
+      attachText: function (el) { textEl = el || null; updateSoundUI(); },
       isReady: function () { return ytState === "ready"; },
       hasFailed: function () { return ytState === "failed"; },
       destroy: function () {
         destroyed = true;
+        if (attachedBtn) {
+          try { attachedBtn.removeEventListener("click", clickHandler); } catch { /* noop */ }
+          attachedBtn = null;
+        }
         try {
           if (ytPlayer && ytPlayer.destroy) ytPlayer.destroy();
         } catch { /* noop */ }

@@ -82,6 +82,10 @@ type BolzooAudioController = {
   setVideoId(id: string): void;
   setMuted(muted: boolean): void;
   start(): void;
+  toggle?(): void;
+  attachButton?(el: HTMLElement | null): void;
+  attachIcon?(el: HTMLElement | null): void;
+  attachText?(el: HTMLElement | null): void;
   isReady(): boolean;
   hasFailed(): boolean;
   destroy(): void;
@@ -2880,15 +2884,39 @@ export function GreetingExperience({ slug }: { slug: string }) {
       {ytVideoId && !ytFailed && (
         <div className="sound-dock">
           <button
-            ref={soundButtonRef}
+            ref={(node) => {
+              soundButtonRef.current = node;
+              bolzooRef.current?.attachButton?.(node);
+            }}
             type="button"
             className="sound"
             aria-pressed="false"
+            onClick={() => {
+              const controller = bolzooRef.current;
+              if (controller?.toggle) {
+                controller.toggle();
+              } else {
+                controller?.start();
+              }
+            }}
           >
-            <span ref={soundIconRef} className="sound-icon" aria-hidden="true">
+            <span
+              ref={(node) => {
+                soundIconRef.current = node;
+                bolzooRef.current?.attachIcon?.(node);
+              }}
+              className="sound-icon"
+              aria-hidden="true"
+            >
               🎵
             </span>
-            <span ref={soundTextRef} className="sound-copy">
+            <span
+              ref={(node) => {
+                soundTextRef.current = node;
+                bolzooRef.current?.attachText?.(node);
+              }}
+              className="sound-copy"
+            >
               дуу асаах
             </span>
           </button>

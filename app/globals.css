@@ -2590,13 +2590,13 @@ img {
   transform: translateX(-150px);
   animation: env-mascot-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   animation-delay: 0.55s;
-  transform-origin: 65% 80%;
 }
 
 .envelope-stage {
   position: relative;
   display: grid;
   place-items: center;
+  margin-top: 18px;
   perspective: 900px;
   animation: env-drop-in 0.95s cubic-bezier(0.34, 1.4, 0.5, 1) both;
   animation-delay: 0.12s;
@@ -2644,7 +2644,6 @@ img {
   height: 188px;
   display: grid;
   place-items: center;
-  margin-top: 18px;
   border: 2px solid #d4c2ad;
   border-radius: 7px;
   background: #fffaf0;
