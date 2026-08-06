@@ -755,6 +755,7 @@ export function CreateGreetingApp() {
   const [publishingWithCode, setPublishingWithCode] = useState(false);
   const [publishedFromCode, setPublishedFromCode] =
     useState<{ publicSlug: string; recipientName: string } | null>(null);
+  const [invitationLinkCopied, setInvitationLinkCopied] = useState(false);
   const [resumeSaved, setResumeSaved] = useState(false);
   const [resumeBannerDismissed, setResumeBannerDismissed] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
@@ -2103,20 +2104,74 @@ export function CreateGreetingApp() {
                       </small>
                     </header>
                     {publishedFromCode ? (
-                      <div className="publish-code-success">
-                        <CheckCircle2 size={16} />
-                        <div>
-                          <strong>Нийтэллээ!</strong>
-                          <a
-                            href={`/g/${publishedFromCode.publicSlug}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {publishedFromCode.recipientName}-ийн мэндчилгээ нээх
-                            <ExternalLink size={12} />
-                          </a>
-                        </div>
-                      </div>
+                      (() => {
+                        const invitationUrl =
+                          typeof window !== "undefined"
+                            ? `${window.location.origin}/g/${publishedFromCode.publicSlug}`
+                            : `/g/${publishedFromCode.publicSlug}`;
+                        return (
+                          <div className="publish-code-success">
+                            <div className="publish-code-success-head">
+                              <CheckCircle2 size={20} />
+                              <div>
+                                <strong>Мэндчилгээ нийтэллээ!</strong>
+                                <small>
+                                  {publishedFromCode.recipientName}-д зориулсан
+                                  урилгын линк бэлэн боллоо.
+                                </small>
+                              </div>
+                            </div>
+                            <div className="publish-invitation-link">
+                              <span title={invitationUrl}>{invitationUrl}</span>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    await navigator.clipboard.writeText(
+                                      invitationUrl,
+                                    );
+                                    setInvitationLinkCopied(true);
+                                    window.setTimeout(
+                                      () => setInvitationLinkCopied(false),
+                                      1800,
+                                    );
+                                  } catch {
+                                    /* clipboard blocked */
+                                  }
+                                }}
+                                aria-label="Линк хуулах"
+                              >
+                                {invitationLinkCopied ? (
+                                  <>
+                                    <Check size={14} /> Хуулагдсан
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy size={14} /> Хуулах
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                            <div className="publish-invitation-actions">
+                              <a
+                                className="primary"
+                                href={`/g/${publishedFromCode.publicSlug}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <ExternalLink size={15} /> Линкээ нээх
+                              </a>
+                              <StoryShareButton
+                                slug={publishedFromCode.publicSlug}
+                                recipientName={publishedFromCode.recipientName}
+                              />
+                              <a className="secondary" href="/dashboard">
+                                <Eye size={15} /> Dashboard
+                              </a>
+                            </div>
+                          </div>
+                        );
+                      })()
                     ) : (
                       <>
                         <input

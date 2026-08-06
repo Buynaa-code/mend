@@ -9058,21 +9058,99 @@ img {
 
 .publish-code-success {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 10px;
-  background: #e7f7ea;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  background: linear-gradient(140deg, #e7f7ea, #d4f4ff);
   color: #1c5a26;
+  border: 1px solid #b8e6c1;
 }
 
-.publish-code-success a {
+.publish-code-success-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.publish-code-success-head strong {
+  display: block;
+  font-size: 15px;
+  line-height: 1.25;
+  margin-bottom: 2px;
+}
+
+.publish-code-success-head small {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #2a5a37;
+}
+
+.publish-invitation-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px dashed #a8d4b0;
+}
+
+.publish-invitation-link span {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: #24222f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.publish-invitation-link button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: none;
+  background: #2a9d59;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.publish-invitation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.publish-invitation-actions a,
+.publish-invitation-actions button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #1c5a26;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: 700;
-  margin-top: 2px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.publish-invitation-actions .primary {
+  background: #1c5a26;
+  color: white;
+}
+
+.publish-invitation-actions .secondary {
+  background: rgba(255, 255, 255, 0.7);
+  color: #1c5a26;
+  border: 1px solid #a8d4b0;
 }
 
 .payment-code-card {
