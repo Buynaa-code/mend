@@ -94,7 +94,7 @@ test("creator requires checkout instead of direct publishing", async () => {
     "utf8",
   );
   assert.match(source, /5,500₮/);
-  assert.match(source, /Encrypted checkout/);
+  assert.match(source, /Төлбөр төлж код авах/);
   assert.match(source, /fetch\("\/api\/checkout"/);
   assert.doesNotMatch(source, />Тусгай линк үүсгэх</);
 });
@@ -229,11 +229,13 @@ test("publish step explains the pay-to-code-to-publish flow", async () => {
 
   assert.match(creatorSource, /publish-flow-steps/);
   assert.match(creatorSource, /Нэг удаагийн код/);
-  assert.match(creatorSource, /5,500₮ төлж код авах/);
+  assert.match(creatorSource, /publish-invoice minimal/);
+  assert.match(creatorSource, /Төлбөр төлж код авах/);
   assert.match(creatorSource, /Алхам 1/);
   assert.match(creatorSource, /Алхам 2/);
   assert.match(paymentSource, /Таны нэг удаагийн код/);
   assert.match(styles, /\.publish-flow-steps/);
+  assert.match(styles, /\.publish-invoice\.minimal/);
   assert.match(styles, /\.payment-code-card/);
 });
 

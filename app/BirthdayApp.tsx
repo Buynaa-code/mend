@@ -15,7 +15,6 @@ import {
   Gift,
   Heart,
   ImagePlus,
-  Landmark,
   LoaderCircle,
   Mail,
   MessageCircle,
@@ -1961,104 +1960,21 @@ export function CreateGreetingApp() {
                     </ol>
                   </section>
 
-                  <section className="publish-invoice">
-                    <header>
-                      <div>
-                        <span className="publish-step-tag">Алхам 1</span>
-                        <strong>Төлбөр төлж код авах</strong>
-                      </div>
-                      <div className="publish-invoice-provider">
-                        <ShieldCheck size={12} />
-                        QPay
-                      </div>
-                    </header>
+                  <section className="publish-invoice minimal">
+                    <span className="publish-step-tag">Алхам 1</span>
+                    <h3 className="publish-invoice-title">Төлбөр төлж код авах</h3>
+                    <p className="publish-invoice-sub">
+                      {draft.recipientName
+                        ? `${draft.recipientName}-д зориулсан`
+                        : "Хүлээн авагч тодорхойгүй"}
+                      {draft.birthdayDate
+                        ? ` · ${formatMongolianDate(draft.birthdayDate)}`
+                        : ""}
+                    </p>
 
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        padding: "8px 12px",
-                        borderRadius: 10,
-                        background:
-                          "linear-gradient(135deg,#ffe4a3,#ffc978)",
-                        color: "#5a3d0f",
-                        fontSize: 12,
-                        fontWeight: 800,
-                        marginBottom: 4,
-                      }}
-                    >
-                      🎉 Эхний 50 хэрэглэгчид · нээлтийн урамшуулал
-                    </div>
-
-                    <div className="publish-invoice-line">
-                      <div>
-                        <strong>Нэг удаагийн мэндчилгээний линк</strong>
-                        <small>
-                          {draft.recipientName
-                            ? `${draft.recipientName}-д зориулсан`
-                            : "Хүлээн авагч тодорхойгүй"}
-                          {draft.birthdayDate
-                            ? ` · ${formatMongolianDate(draft.birthdayDate)}`
-                            : ""}
-                        </small>
-                      </div>
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "baseline",
-                          gap: 6,
-                        }}
-                      >
-                        <span
-                          style={{
-                            color: "#a89fb8",
-                            textDecoration: "line-through",
-                            fontWeight: 600,
-                            fontSize: "0.85em",
-                          }}
-                        >
-                          8,500₮
-                        </span>
-                        5,500₮
-                      </span>
-                    </div>
-
-                    <div className="publish-invoice-total">
-                      <span>Нийт төлөх</span>
-                      <strong>
-                        <span
-                          style={{
-                            color: "#a89fb8",
-                            textDecoration: "line-through",
-                            fontWeight: 600,
-                            fontSize: "0.75em",
-                            marginRight: 8,
-                          }}
-                        >
-                          8,500₮
-                        </span>
-                        5,500₮ MNT
-                      </strong>
-                    </div>
-
-                    <div className="publish-invoice-banks">
-                      <small>Дараагийн алхамд QR + банкны деplink</small>
-                      <div>
-                        <span>
-                          <Landmark size={12} /> Хаан
-                        </span>
-                        <span>
-                          <Landmark size={12} /> ХХБ
-                        </span>
-                        <span>
-                          <Landmark size={12} /> Голомт
-                        </span>
-                        <span>
-                          <QrCode size={12} /> QPay
-                        </span>
-                        <span>+ бусад</span>
-                      </div>
+                    <div className="publish-invoice-price">
+                      <strong>5,500₮</strong>
+                      <span className="publish-invoice-strike">8,500₮</span>
                     </div>
 
                     <button
@@ -2077,16 +1993,13 @@ export function CreateGreetingApp() {
                           Нэхэмжлэх үүсгэж байна...
                         </>
                       ) : (
-                        <>
-                          <QrCode size={17} />
-                          5,500₮ төлж код авах
-                        </>
+                        <>Төлөх</>
                       )}
                     </button>
 
                     <small className="publish-invoice-note">
                       <ShieldCheck size={11} />
-                      Encrypted checkout · Төлбөрийн дараа BDY- код автоматаар гарч ирнэ
+                      QPay · Төлмөгц BDY- код автоматаар ирнэ
                     </small>
                   </section>
 
