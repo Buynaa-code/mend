@@ -276,19 +276,21 @@ export function PaymentApp() {
     }
   }
 
-  // Meta's in-app browser silently swallows a bare custom scheme href, but on
-  // Android an `intent://` wrapper hits the OS-level chooser and can still open
-  // the bank app even from inside Messenger. iOS has no equivalent — Meta
-  // blocks scheme launches outright — so leave the direct scheme href alone
-  // and let the buyer fall back to the QR / open-in-Safari path.
+  // Chrome for Android no longer launches bare custom-scheme hrefs from anchor
+  // clicks, so wrap every Android tap in `intent://` — that reaches the OS
+  // chooser and opens the bank app in regular Chrome and inside Meta apps
+  // alike. iOS has no equivalent (Meta blocks scheme launches outright, Safari
+  // handles the raw scheme itself), so leave the direct href alone there.
   function handleBankClick(
     event: React.MouseEvent<HTMLAnchorElement>,
     bankLink: string,
   ) {
-    if (!inAppBrowser || inAppBrowser.isIos) return;
+    const isAndroid = /Android/i.test(navigator.userAgent || "");
+    if (!isAndroid) return;
     const match = bankLink.match(/^([a-z][a-z0-9+.-]*):\/\/(.*)$/i);
     if (!match) return;
     const [, scheme, rest] = match;
+    if (scheme === "http" || scheme === "https") return;
     event.preventDefault();
     window.location.href = `intent://${rest}#Intent;scheme=${scheme};end`;
   }
