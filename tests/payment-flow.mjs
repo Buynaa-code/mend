@@ -37,6 +37,8 @@ const draft = {
   musicName: "",
   photos: [uploaded.url],
   birthdayDate: "2026-12-01",
+  mascot: "giraffe",
+  lockUntilBirthday: true,
 };
 
 const checkoutResponse = await fetch(`${baseUrl}/api/checkout`, {
@@ -92,20 +94,18 @@ function publish() {
   return fetch(`${baseUrl}/api/publish`, {
     method: "POST",
     headers: { "content-type": "application/json", ...paymentHeaders },
-    body: JSON.stringify({ paymentId: checkout.paymentId }),
+    body: JSON.stringify({ code: paid.payment.accessCode }),
   });
 }
 
-const [firstResponse, secondResponse] = await Promise.all([
-  publish(),
-  publish(),
-]);
-assert.ok([200, 201].includes(firstResponse.status));
-assert.ok([200, 201].includes(secondResponse.status));
+const firstResponse = await publish();
+assert.equal(firstResponse.status, 201);
 const first = await firstResponse.json();
-const second = await secondResponse.json();
-assert.equal(first.publicSlug, second.publicSlug);
-assert.equal(first.ownerToken, second.ownerToken);
+assert.equal(first.mascot, draft.mascot);
+
+// `1 төлбөр = 1 линк` — зарцуулсан кодоор дахин нийтлэх боломжгүй.
+const reuseResponse = await publish();
+assert.equal(reuseResponse.status, 409);
 
 const publicResponse = await fetch(
   `${baseUrl}/api/greetings?slug=${encodeURIComponent(first.publicSlug)}`,
@@ -116,6 +116,10 @@ assert.doesNotMatch(
   publicText,
   /ownerToken|owner_token|ownerEmail|paymentId|client_secret/i,
 );
+// Дүр болон түгжээний сонголт нийтлэгдсэн мэндчилгээ дээр хадгалагдана.
+const publicGreeting = JSON.parse(publicText).greeting;
+assert.equal(publicGreeting.mascot, draft.mascot);
+assert.equal(publicGreeting.lockUntilBirthday, draft.lockUntilBirthday);
 
 const dashboardResponse = await fetch(
   `${baseUrl}/api/greetings?dashboard=1`,
@@ -131,6 +135,8 @@ const finalStatus = await json(
 );
 assert.equal(finalStatus.payment.codeStatus, "used");
 assert.equal(finalStatus.payment.publication.publicSlug, first.publicSlug);
+// Баримт дээрх дүр нь сонгосон дүртэйгээ таарна.
+assert.equal(finalStatus.payment.publication.mascot, draft.mascot);
 
 console.log(
   JSON.stringify(
@@ -140,10 +146,13 @@ console.log(
       directPublish: directPublish.status,
       payment: paid.payment.status,
       code: paid.payment.accessCode,
-      publish: [firstResponse.status, secondResponse.status],
+      publish: firstResponse.status,
+      reuse: reuseResponse.status,
       public: publicResponse.status,
       dashboard: dashboardResponse.status,
       codeStatus: finalStatus.payment.codeStatus,
+      mascot: publicGreeting.mascot,
+      lockUntilBirthday: publicGreeting.lockUntilBirthday,
       slug: first.publicSlug,
     },
     null,

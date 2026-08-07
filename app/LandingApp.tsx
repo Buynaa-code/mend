@@ -2705,7 +2705,8 @@ function ResumeSection() {
               padding: "12px 14px",
               borderRadius: 12,
               border: "1px solid #d8d1e5",
-              fontSize: 15,
+              // 16px minimum — iOS Safari zooms the page on focus below that.
+              fontSize: 16,
               outline: "none",
               background: "#fff",
               color: "#3b3050",

@@ -1,4 +1,5 @@
 import { ensureSchema, getDb } from "../../../db";
+import { normalizeMascot } from "../../lib/greeting";
 import {
   deriveOwnerToken,
   ensureAccessCode,
@@ -20,6 +21,7 @@ type PublicationRow = {
   id: string;
   public_slug: string;
   recipient_name: string;
+  /** Хуучин нэртэй багана — одоо дүрийн id хадгална. */
   recipient_gender: string;
 };
 
@@ -130,8 +132,7 @@ export async function GET(request: Request) {
               id: publication.id,
               publicSlug: publication.public_slug,
               recipientName: publication.recipient_name,
-              recipientGender:
-                publication.recipient_gender === "male" ? "male" : "female",
+              mascot: normalizeMascot(publication.recipient_gender),
               ownerToken: await deriveOwnerToken(payment.id),
             }
           : null,

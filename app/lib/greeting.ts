@@ -8,7 +8,7 @@ export type TemplateId =
   | "minimal"
   | "boho";
 export type ReactionType = "heart" | "party" | "surprised";
-export type RecipientGender = "female" | "male";
+export type MascotCharacter = "fawn" | "tiger" | "giraffe";
 
 export type TemplateMood = "playful" | "romantic" | "festive" | "editorial" | "cozy";
 export type PhotoFrame = "polaroid" | "collage" | "arch" | "square" | "circle";
@@ -23,9 +23,65 @@ export type PreviewScene =
   | "music"
   | "finale";
 
+export interface MascotOption {
+  id: MascotCharacter;
+  name: string;
+  description: string;
+  /** `/public/assets` доторх зургийн үндсэн нэр. */
+  asset: string;
+}
+
+export const mascotOptions: MascotOption[] = [
+  {
+    id: "fawn",
+    name: "Буга",
+    description: "Зөөлөн, эелдэг",
+    asset: "mend-fawn",
+  },
+  {
+    id: "tiger",
+    name: "Бамбар",
+    description: "Эрч хүчтэй, тоглоомсог",
+    asset: "mend-tiger",
+  },
+  {
+    id: "giraffe",
+    name: "Анааш",
+    description: "Найрсаг, урам зоригтой",
+    asset: "mend-giraffe",
+  },
+];
+
+/**
+ * `greetings.recipient_gender` багана нь дүр сонголт нэвтрэхээс өмнө
+ * "female" / "male" гэсэн утга хадгалж байсан тул тэдгээрийг дүр рүү буулгана.
+ */
+const legacyMascotAliases: Record<string, MascotCharacter> = {
+  female: "fawn",
+  male: "tiger",
+};
+
+export function normalizeMascot(value: unknown): MascotCharacter {
+  const id = typeof value === "string" ? value : "";
+  const known = mascotOptions.find((option) => option.id === id);
+  return known?.id ?? legacyMascotAliases[id] ?? mascotOptions[0].id;
+}
+
+/** Хуучин `recipientGender` талбартай ноорог/мөрөөс дүрийг уншина. */
+export function readMascot(source: {
+  mascot?: unknown;
+  recipientGender?: unknown;
+}): MascotCharacter {
+  return normalizeMascot(source.mascot ?? source.recipientGender);
+}
+
+export function getMascot(id: MascotCharacter): MascotOption {
+  return mascotOptions.find((option) => option.id === id) ?? mascotOptions[0];
+}
+
 export interface GreetingContent {
   recipientName: string;
-  recipientGender: RecipientGender;
+  mascot: MascotCharacter;
   senderName: string;
   template: TemplateId;
   headline: string;
@@ -35,6 +91,8 @@ export interface GreetingContent {
   musicName: string;
   photos: string[];
   birthdayDate: string;
+  /** Үнэн бол төрсөн өдрийн 00:00 хүртэл түгжээтэй, дараа нь өөрөө нээгдэнэ. */
+  lockUntilBirthday: boolean;
 }
 
 export interface GreetingDraft extends GreetingContent {
@@ -69,7 +127,8 @@ export interface GreetingTemplate {
   background: string;
   surface: string;
   text: string;
-  mascot: string;
+  /** Загварын танилцуулгад харуулах дүрийн зураг. */
+  previewMascot: string;
   mood: TemplateMood;
   tagline: string;
   photoFrame: PhotoFrame;
@@ -86,7 +145,7 @@ export const templates: GreetingTemplate[] = [
     background: "#fff2a8",
     surface: "#fffdf6",
     text: "#43245d",
-    mascot: "/assets/mend-fawn-cake.png",
+    previewMascot: "/assets/mend-fawn-cake.png",
     mood: "playful",
     tagline: "Sticker, gingham, амттан шиг өнгөлөг баяр",
     photoFrame: "polaroid",
@@ -101,7 +160,7 @@ export const templates: GreetingTemplate[] = [
     background: "#24142d",
     surface: "#fff8ef",
     text: "#fff3df",
-    mascot: "/assets/mend-fawn-letter.png",
+    previewMascot: "/assets/mend-fawn-letter.png",
     mood: "romantic",
     tagline: "Сарны гэрэл, алтлаг хүрээ, cinematic романтик",
     photoFrame: "arch",
@@ -116,7 +175,7 @@ export const templates: GreetingTemplate[] = [
     background: "#3154e8",
     surface: "#f7ff72",
     text: "#ffffff",
-    mascot: "/assets/mend-fawn-celebrate.png",
+    previewMascot: "/assets/mend-fawn-celebrate.png",
     mood: "festive",
     tagline: "Pop-art burst, confetti, тайзны өндөр эрч хүч",
     photoFrame: "circle",
@@ -131,7 +190,7 @@ export const templates: GreetingTemplate[] = [
     background: "#dcecff",
     surface: "#fffef8",
     text: "#172a55",
-    mascot: "/assets/mend-fawn-camera.png",
+    previewMascot: "/assets/mend-fawn-camera.png",
     mood: "editorial",
     tagline: "Cut-and-paste zine · дурсамж бүр өөрийн хуудастай",
     photoFrame: "collage",
@@ -146,7 +205,7 @@ export const templates: GreetingTemplate[] = [
     background: "#17143e",
     surface: "#30255c",
     text: "#f7f2ff",
-    mascot: "/assets/mend-fawn-music.png",
+    previewMascot: "/assets/mend-fawn-music.png",
     mood: "romantic",
     tagline: "Aurora glow, шилэн карт, хөвөх оддын шөнө",
     photoFrame: "arch",
@@ -161,7 +220,7 @@ export const templates: GreetingTemplate[] = [
     background: "#f3bd45",
     surface: "#fff4d3",
     text: "#4b2b16",
-    mascot: "/assets/mend-fawn.png",
+    previewMascot: "/assets/mend-fawn.png",
     mood: "cozy",
     tagline: "Sunset waves, vinyl хэмнэл, дулаахан 70s vibe",
     photoFrame: "square",
@@ -176,7 +235,7 @@ export const templates: GreetingTemplate[] = [
     background: "#f2f0e9",
     surface: "#ffffff",
     text: "#111111",
-    mascot: "/assets/mend-fawn-pout.png",
+    previewMascot: "/assets/mend-fawn-pout.png",
     mood: "editorial",
     tagline: "Bold typography, gallery layout, цэвэр editorial",
     photoFrame: "square",
@@ -191,7 +250,7 @@ export const templates: GreetingTemplate[] = [
     background: "#efd9bd",
     surface: "#fff7e9",
     text: "#3f3527",
-    mascot: "/assets/mend-fawn-music.png",
+    previewMascot: "/assets/mend-fawn-music.png",
     mood: "cozy",
     tagline: "Desert sunset, гар зурсан хэлбэр, зөөлөн organic мэдрэмж",
     photoFrame: "arch",
@@ -204,7 +263,7 @@ export function createDefaultDraft(): GreetingDraft {
   return {
     currentStep: 0,
     recipientName: "",
-    recipientGender: "female",
+    mascot: "fawn",
     senderName: "",
     template: "cute",
     headline: "",
@@ -214,6 +273,7 @@ export function createDefaultDraft(): GreetingDraft {
     musicName: "",
     photos: [],
     birthdayDate: "",
+    lockUntilBirthday: true,
   };
 }
 
@@ -235,7 +295,7 @@ export function buildSampleDraft(templateId: TemplateId): GreetingDraft {
   return {
     currentStep: 3,
     recipientName: "Ану",
-    recipientGender: "female",
+    mascot: "fawn",
     senderName: "Батаа",
     template: template.id,
     headline: `Төрсөн өдрийн мэнд, Ану!`,
@@ -246,6 +306,7 @@ export function buildSampleDraft(templateId: TemplateId): GreetingDraft {
     musicName: "Happy birthday · sample",
     photos: samplePhotos,
     birthdayDate,
+    lockUntilBirthday: true,
   };
 }
 

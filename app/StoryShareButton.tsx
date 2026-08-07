@@ -20,7 +20,6 @@ import {
 type StoryGreeting = Pick<
   GreetingContent,
   | "recipientName"
-  | "recipientGender"
   | "senderName"
   | "template"
   | "headline"

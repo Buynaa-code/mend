@@ -16,6 +16,7 @@ import {
   Heart,
   ImagePlus,
   LoaderCircle,
+  Lock,
   Mail,
   MessageCircle,
   Mic,
@@ -44,28 +45,40 @@ import {
   useRef,
   useState,
 } from "react";
+import { ConfettiBurst, type ConfettiBurstHandle } from "./ConfettiBurst";
+import { Countdown } from "./Countdown";
+import { LockedGreeting } from "./LockedGreeting";
+import { Mascot, mascotSource, type MascotVariant } from "./Mascot";
+import { MascotPicker } from "./MascotPicker";
+import { ToggleField } from "./ToggleField";
+import {
+  daysUntilBirthday,
+  formatMongolianDate,
+  isBeforeBirthday,
+  isoDate,
+  mongolianWeekdays,
+} from "./lib/date";
 import {
   createDefaultDraft,
   type DashboardGreeting,
   type GreetingDraft,
   type PreviewScene,
   type PublicGreeting,
-  type RecipientGender,
   type ReactionType,
   getTemplate,
   isDraftReady,
   parseYoutubeId,
+  readMascot,
   sanitizePlainText,
   templates,
 } from "./lib/greeting";
+import { haptic } from "./lib/haptics";
+import {
+  ownsGreeting,
+  readOwnerEntries,
+  rememberOwnerEntry,
+} from "./lib/owner";
 import { StoryShareButton } from "./StoryShareButton";
-
-type OwnerEntry = {
-  id: string;
-  token: string;
-  slug: string;
-  recipientName: string;
-};
 
 type BolzooAudioOptions = {
   videoId: string;
@@ -99,6 +112,16 @@ declare global {
   }
 }
 
+const reactionChoices: {
+  type: ReactionType;
+  emoji: string;
+  label: string;
+}[] = [
+  { type: "heart", emoji: "💖", label: "Хөөрхөн байлаа" },
+  { type: "party", emoji: "🎉", label: "Surprise болсон" },
+  { type: "surprised", emoji: "🥹", label: "Сэтгэл хөдөллөө" },
+];
+
 type RecipientScreen =
   | "envelope"
   | "cake"
@@ -111,7 +134,6 @@ type RecipientScreen =
 
 const draftKey = "mend-create-draft-v2";
 const draftTokenKey = "mend-draft-token-v1";
-const ownerKey = "mend-owner-tokens-v2";
 const resumeSentKey = "mend-resume-sent-v1";
 const resumeDismissedKey = "mend-resume-dismissed-v1";
 const resumeDismissMs = 24 * 60 * 60 * 1000;
@@ -121,39 +143,6 @@ const fallbackPhotos = [
   "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=900&q=80",
   "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=900&q=80",
 ];
-
-type MascotVariant =
-  | "intro"
-  | "pout"
-  | "celebrate"
-  | "camera"
-  | "letter"
-  | "music"
-  | "cake";
-
-const mascotSources: Record<
-  RecipientGender,
-  Record<MascotVariant, string>
-> = {
-  female: {
-    intro: "/assets/mend-fawn.png",
-    pout: "/assets/mend-fawn-pout.png",
-    celebrate: "/assets/mend-fawn-celebrate.png",
-    camera: "/assets/mend-fawn-camera.png",
-    letter: "/assets/mend-fawn-letter.png",
-    music: "/assets/mend-fawn-music.png",
-    cake: "/assets/mend-fawn-cake.png",
-  },
-  male: {
-    intro: "/assets/mend-tiger.png",
-    pout: "/assets/mend-tiger-pout.png",
-    celebrate: "/assets/mend-tiger-celebrate.png",
-    camera: "/assets/mend-tiger-camera.png",
-    letter: "/assets/mend-tiger-letter.png",
-    music: "/assets/mend-tiger-music.png",
-    cake: "/assets/mend-tiger-cake.png",
-  },
-};
 
 const templateMascotVariants: Record<
   GreetingDraft["template"],
@@ -168,32 +157,6 @@ const templateMascotVariants: Record<
   minimal: "pout",
   boho: "music",
 };
-
-function mascotSource(
-  gender: RecipientGender | undefined,
-  variant: MascotVariant,
-) {
-  return mascotSources[gender === "male" ? "male" : "female"][variant];
-}
-
-function Mascot({
-  variant,
-  gender = "female",
-  className = "",
-}: {
-  variant: MascotVariant;
-  gender?: RecipientGender;
-  className?: string;
-}) {
-  return (
-    <img
-      className={`mascot ${className}`}
-      src={mascotSource(gender, variant)}
-      alt=""
-      draggable={false}
-    />
-  );
-}
 
 function IconButton({
   label,
@@ -309,7 +272,7 @@ export function CardPreview({
             </p>
           </div>
           <Mascot
-            gender={draft.recipientGender}
+            character={draft.mascot}
             variant={draft.template === "party" ? "celebrate" : "cake"}
           />
         </>
@@ -328,7 +291,7 @@ export function CardPreview({
           ) : (
             <p className="preview-hollow">Огноо хараахан оруулаагүй</p>
           )}
-          <Mascot gender={draft.recipientGender} variant="celebrate" />
+          <Mascot character={draft.mascot} variant="celebrate" />
         </div>
       )}
 
@@ -349,7 +312,7 @@ export function CardPreview({
           ) : (
             <p className="preview-hollow">Зураг оруулаагүй</p>
           )}
-          <Mascot gender={draft.recipientGender} variant="camera" />
+          <Mascot character={draft.mascot} variant="camera" />
         </div>
       )}
 
@@ -366,7 +329,7 @@ export function CardPreview({
           ) : (
             <p className="preview-hollow">Мэндчилгээ хараахан бичээгүй</p>
           )}
-          <Mascot gender={draft.recipientGender} variant="letter" />
+          <Mascot character={draft.mascot} variant="letter" />
         </div>
       )}
 
@@ -382,7 +345,7 @@ export function CardPreview({
           ) : (
             <p className="preview-hollow">Дуу оруулаагүй — чимээгүй хувилбар</p>
           )}
-          <Mascot gender={draft.recipientGender} variant="music" />
+          <Mascot character={draft.mascot} variant="music" />
         </div>
       )}
 
@@ -393,7 +356,7 @@ export function CardPreview({
             {draft.surpriseMessage ||
               "Хүлээж байсан бүх сайхан зүйл чинь энэ жил чамайг олоосой."}
           </h2>
-          <Mascot gender={draft.recipientGender} variant="celebrate" />
+          <Mascot character={draft.mascot} variant="celebrate" />
         </div>
       )}
     </div>
@@ -441,31 +404,6 @@ function setCachedYoutube(query: string, items: YoutubeSearchItem[]) {
   } catch {
     /* localStorage бүрхэж болохгүй бол чимээгүй */
   }
-}
-
-function daysUntilBirthday(dateString: string): number | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return null;
-  const target = new Date(`${dateString}T00:00:00`).getTime();
-  if (!Number.isFinite(target)) return null;
-  const now = new Date();
-  const todayMidnight = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-  ).getTime();
-  return Math.round((target - todayMidnight) / 86_400_000);
-}
-
-const monWeekdays = ["Да", "Мя", "Лх", "Пү", "Ба", "Бя", "Ня"];
-
-function isoDate(y: number, m: number, d: number) {
-  return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-}
-
-function formatMongolianDate(iso: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
-  const [y, m, d] = iso.split("-").map(Number);
-  return `${y} · ${m} сарын ${d}`;
 }
 
 function DatePicker({
@@ -589,7 +527,7 @@ function DatePicker({
             </button>
           </header>
           <div className="date-picker-weekdays">
-            {monWeekdays.map((label) => (
+            {mongolianWeekdays.map((label) => (
               <span key={label}>{label}</span>
             ))}
           </div>
@@ -735,6 +673,40 @@ async function uploadFile(file: File) {
   return { url: data.url, name: data.name || file.name };
 }
 
+/** Түгжээний сэлгүүрийн доод тайлбар. */
+function lockDescription(locked: boolean, birthdayDate: string) {
+  if (!locked) {
+    return "Линкийг дарсан даруйд шууд нээгдэнэ.";
+  }
+  const days = daysUntilBirthday(birthdayDate);
+  if (days === null) {
+    return "Огноогоо сонгосны дараа нээгдэх цаг тодорхой болно.";
+  }
+  if (days <= 0) {
+    return "Огноо өнөөдөр эсвэл өнгөрсөн тул түгжээ нөлөөлөхгүй — шууд нээгдэнэ.";
+  }
+  return `${formatMongolianDate(birthdayDate)}-ны 00:00 цагт өөрөө нээгдэнэ. Урьдчилж илгээж болно.`;
+}
+
+/**
+ * Хадгалсан ноорогийг өнөөгийн бүтэц рүү буулгана. Дүр сонголт нэвтрэхээс
+ * өмнөх ноорогууд `recipientGender` талбартай байсныг дүр болгож хөрвүүлнэ.
+ */
+function hydrateDraft(stored: unknown): GreetingDraft {
+  const base = createDefaultDraft();
+  if (!stored || typeof stored !== "object") return base;
+  const source = stored as Partial<GreetingDraft> & {
+    recipientGender?: unknown;
+  };
+  const draft: GreetingDraft = {
+    ...base,
+    ...source,
+    mascot: readMascot(source),
+  };
+  delete (draft as { recipientGender?: unknown }).recipientGender;
+  return draft;
+}
+
 export function CreateGreetingApp() {
   const [draft, setDraft] = useState<GreetingDraft>(() => createDefaultDraft());
   const [hydrated, setHydrated] = useState(false);
@@ -764,6 +736,13 @@ export function CreateGreetingApp() {
   const photoRef = useRef<HTMLInputElement>(null);
   const musicRef = useRef<HTMLInputElement>(null);
   const step = Math.max(0, Math.min(3, draft.currentStep));
+
+  // Scroll after the new step has committed. Doing it inside setStep ran before
+  // React swapped the content, and scroll anchoring then left the user partway
+  // down the next step — past the photo album on step 3.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [step]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -803,10 +782,7 @@ export function CreateGreetingApp() {
             if (!response.ok || !data.draft) {
               throw new Error(data.error || "Ноорог олдсонгүй.");
             }
-            const merged: GreetingDraft = {
-              ...createDefaultDraft(),
-              ...data.draft,
-            };
+            const merged = hydrateDraft(data.draft);
             setDraft(merged);
             setSaveEmail(resumePlan!.email);
             window.localStorage.setItem(draftKey, JSON.stringify(merged));
@@ -841,7 +817,7 @@ export function CreateGreetingApp() {
       let next: GreetingDraft = createDefaultDraft();
       if (saved) {
         try {
-          next = { ...createDefaultDraft(), ...JSON.parse(saved) };
+          next = hydrateDraft(JSON.parse(saved));
         } catch {
           window.localStorage.removeItem(draftKey);
         }
@@ -985,7 +961,6 @@ export function CreateGreetingApp() {
 
   function setStep(next: number) {
     update({ currentStep: Math.max(0, Math.min(3, next)) });
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function handlePhotos(event: ChangeEvent<HTMLInputElement>) {
@@ -1171,23 +1146,13 @@ export function CreateGreetingApp() {
       if (!response.ok || !result.publicSlug || !result.ownerToken) {
         throw new Error(result.error || "Мэндчилгээ нийтэлж чадсангүй.");
       }
-      try {
-        const entry = {
-          id: result.id ?? "",
-          token: result.ownerToken,
-          slug: result.publicSlug,
-          recipientName: result.recipientName ?? draft.recipientName,
-        };
-        const stored = window.localStorage.getItem(ownerKey);
-        const list = stored ? (JSON.parse(stored) as Array<typeof entry>) : [];
-        const filtered = list.filter((item) => item.slug !== entry.slug);
-        window.localStorage.setItem(
-          ownerKey,
-          JSON.stringify([entry, ...filtered].slice(0, 20)),
-        );
-      } catch {
-        /* ignore */
-      }
+      rememberOwnerEntry({
+        id: result.id ?? "",
+        token: result.ownerToken,
+        slug: result.publicSlug,
+        recipientName: result.recipientName ?? draft.recipientName,
+      });
+      haptic("celebrate");
       setPublishedFromCode({
         publicSlug: result.publicSlug,
         recipientName: result.recipientName ?? draft.recipientName,
@@ -1220,7 +1185,7 @@ export function CreateGreetingApp() {
             <img
               className="mascot"
               src={mascotSource(
-                draft.recipientGender,
+                draft.mascot,
                 templateMascotVariants[activeTemplate.id],
               )}
               alt=""
@@ -1288,7 +1253,7 @@ export function CreateGreetingApp() {
                     </span>
                     <img
                       src={mascotSource(
-                        draft.recipientGender,
+                        draft.mascot,
                         templateMascotVariants[template.id],
                       )}
                       alt=""
@@ -1351,37 +1316,16 @@ export function CreateGreetingApp() {
 
               <section className="form-section">
                 <header className="form-section-title">
-                  <strong>Маскот</strong>
-                  <small>Хүлээн авагчид тохирох дүр автоматаар сонгогдоно.</small>
+                  <strong>Дүр</strong>
+                  <small>
+                    Мэндчилгээг дагалдан явах найз. Хүлээн авагчид таалагдах
+                    дүрээ сонгоорой.
+                  </small>
                 </header>
-                <div className="gender-picker" role="group" aria-label="Хүлээн авагчийн хүйс">
-                  <button
-                    type="button"
-                    className={draft.recipientGender === "female" ? "selected" : ""}
-                    aria-pressed={draft.recipientGender === "female"}
-                    onClick={() => update({ recipientGender: "female" })}
-                  >
-                    <img src={mascotSource("female", "intro")} alt="" />
-                    <span>
-                      <strong>Эмэгтэй</strong>
-                      <small>Буга mascot</small>
-                    </span>
-                    {draft.recipientGender === "female" && <CheckCircle2 size={19} />}
-                  </button>
-                  <button
-                    type="button"
-                    className={draft.recipientGender === "male" ? "selected" : ""}
-                    aria-pressed={draft.recipientGender === "male"}
-                    onClick={() => update({ recipientGender: "male" })}
-                  >
-                    <img src={mascotSource("male", "intro")} alt="" />
-                    <span>
-                      <strong>Эрэгтэй</strong>
-                      <small>Бамбар mascot</small>
-                    </span>
-                    {draft.recipientGender === "male" && <CheckCircle2 size={19} />}
-                  </button>
-                </div>
+                <MascotPicker
+                  value={draft.mascot}
+                  onChange={(mascot) => update({ mascot })}
+                />
               </section>
 
               <section className="form-section">
@@ -1417,6 +1361,19 @@ export function CreateGreetingApp() {
                     );
                   })()}
                 </div>
+
+                <ToggleField
+                  checked={draft.lockUntilBirthday}
+                  onChange={(lockUntilBirthday) =>
+                    update({ lockUntilBirthday })
+                  }
+                  icon={<Lock size={14} />}
+                  label="Төрсөн өдөр хүртэл түгжих"
+                  description={lockDescription(
+                    draft.lockUntilBirthday,
+                    draft.birthdayDate,
+                  )}
+                />
               </section>
 
               <section className="form-section">
@@ -1856,6 +1813,12 @@ export function CreateGreetingApp() {
                 fixStep: 2,
               },
             ];
+            const missing = checks.filter((c) => !c.ok);
+            // Both publish buttons sit ~485px below the checklist panel, so on a
+            // phone the reason they are disabled is off-screen. Repeat it inline.
+            const blockedReason = missing.length
+              ? `${missing.map((m) => m.label).join(", ")} — дутуу байна`
+              : "";
             const daysLeft = daysUntilBirthday(draft.birthdayDate);
             const ytId = parseYoutubeId(draft.musicUrl);
             const musicBadge = !draft.musicUrl
@@ -1898,7 +1861,6 @@ export function CreateGreetingApp() {
 
                 <div className="publish-side">
                   {(() => {
-                    const missing = checks.filter((c) => !c.ok);
                     if (missing.length === 0) return null;
                     return (
                       <section className="publish-missing">
@@ -1990,6 +1952,7 @@ export function CreateGreetingApp() {
                         Boolean(uploading)
                       }
                       onClick={startCheckout}
+                      title={blockedReason || undefined}
                     >
                       {checkingOut ? (
                         <>
@@ -2000,6 +1963,12 @@ export function CreateGreetingApp() {
                         <>Төлөх</>
                       )}
                     </button>
+
+                    {blockedReason ? (
+                      <small className="publish-blocked-note" role="status">
+                        {blockedReason}
+                      </small>
+                    ) : null}
 
                     <small className="publish-invoice-note">
                       <ShieldCheck size={11} />
@@ -2029,61 +1998,71 @@ export function CreateGreetingApp() {
                         return (
                           <div className="publish-code-success">
                             <div className="publish-code-success-head">
-                              <CheckCircle2 size={20} />
+                              <CheckCircle2 size={22} />
                               <div>
-                                <strong>Мэндчилгээ нийтэллээ!</strong>
+                                <strong>Мэндчилгээ бэлэн боллоо!</strong>
                                 <small>
                                   {publishedFromCode.recipientName}-д зориулсан
-                                  урилгын линк бэлэн боллоо.
+                                  урилгын линк.
                                 </small>
                               </div>
                             </div>
-                            <div className="publish-invitation-link">
+
+                            <div className="publish-invitation-link readonly">
                               <span title={invitationUrl}>{invitationUrl}</span>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  try {
-                                    await navigator.clipboard.writeText(
-                                      invitationUrl,
-                                    );
-                                    setInvitationLinkCopied(true);
-                                    window.setTimeout(
-                                      () => setInvitationLinkCopied(false),
-                                      1800,
-                                    );
-                                  } catch {
-                                    /* clipboard blocked */
-                                  }
-                                }}
-                                aria-label="Линк хуулах"
-                              >
-                                {invitationLinkCopied ? (
-                                  <>
-                                    <Check size={14} /> Хуулагдсан
-                                  </>
-                                ) : (
-                                  <>
-                                    <Copy size={14} /> Хуулах
-                                  </>
-                                )}
-                              </button>
                             </div>
-                            <div className="publish-invitation-actions">
+
+                            <button
+                              type="button"
+                              className={`publish-invitation-cta${
+                                invitationLinkCopied ? " done" : ""
+                              }`}
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(
+                                    invitationUrl,
+                                  );
+                                  setInvitationLinkCopied(true);
+                                  window.setTimeout(
+                                    () => setInvitationLinkCopied(false),
+                                    2500,
+                                  );
+                                } catch {
+                                  /* clipboard blocked */
+                                }
+                              }}
+                            >
+                              {invitationLinkCopied ? (
+                                <>
+                                  <Check size={20} />
+                                  Линк хуулагдлаа — одоо найздаа илгээ
+                                </>
+                              ) : (
+                                <>
+                                  <Copy size={20} />
+                                  Линкээ хуулаад хайртай хүн рүүгээ илгээгээрэй
+                                </>
+                              )}
+                            </button>
+
+                            <p className="publish-invitation-note">
+                              ⚠ Линкээ заавал хуулж, хадгалж авна уу — дараа энэ хуудсаас олдохгүй байж болно.
+                            </p>
+
+                            <div className="publish-invitation-secondary">
                               <a
-                                className="primary"
                                 href={`/g/${publishedFromCode.publicSlug}`}
                                 target="_blank"
                                 rel="noreferrer"
                               >
-                                <ExternalLink size={15} /> Линкээ нээх
+                                <ExternalLink size={13} /> Нээж үзэх
                               </a>
                               <StoryShareButton
                                 slug={publishedFromCode.publicSlug}
                                 recipientName={publishedFromCode.recipientName}
                               />
-                              <a className="secondary" href="/dashboard">
-                                <Eye size={15} /> Dashboard
+                              <a href="/dashboard">
+                                <Eye size={13} /> Dashboard
                               </a>
                             </div>
                           </div>
@@ -2113,6 +2092,7 @@ export function CreateGreetingApp() {
                             !isDraftReady(draft)
                           }
                           onClick={() => void publishWithCode()}
+                          title={blockedReason || undefined}
                         >
                           {publishingWithCode ? (
                             <>
@@ -2126,6 +2106,11 @@ export function CreateGreetingApp() {
                             </>
                           )}
                         </button>
+                        {blockedReason ? (
+                          <small className="publish-blocked-note" role="status">
+                            {blockedReason}
+                          </small>
+                        ) : null}
                       </>
                     )}
                   </section>
@@ -2275,34 +2260,6 @@ export function CreateGreetingApp() {
   );
 }
 
-function Countdown({ birthdayDate }: { birthdayDate: string }) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const target = new Date(`${birthdayDate}T00:00:00`).getTime();
-  const distance = Math.max(0, target - now);
-  const units = [
-    ["өдөр", Math.floor(distance / 86_400_000)],
-    ["цаг", Math.floor((distance / 3_600_000) % 24)],
-    ["мин", Math.floor((distance / 60_000) % 60)],
-    ["сек", Math.floor((distance / 1000) % 60)],
-  ] as const;
-
-  return (
-    <div className="countdown-grid">
-      {units.map(([label, value]) => (
-        <div key={label}>
-          <strong>{String(value).padStart(2, "0")}</strong>
-          <span>{label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 type CakeBlowStatus =
   | "idle"
   | "starting"
@@ -2343,6 +2300,7 @@ function BirthdayCakeExperience({
     if (completedRef.current) return;
     completedRef.current = true;
     stopListening();
+    haptic("celebrate");
     setBlowLevel(1);
     setStatus("blown");
     completeTimerRef.current = window.setTimeout(onComplete, 2200);
@@ -2652,6 +2610,8 @@ export function GreetingExperience({ slug }: { slug: string }) {
   const [guestMessage, setGuestMessage] = useState("");
   const [guestSent, setGuestSent] = useState(false);
   const [ytFailed, setYtFailed] = useState(false);
+  /** Илгээгч өөрөө түгжээг алгасаж урьдчилж үзэж байгаа эсэх. */
+  const [previewingLocked, setPreviewingLocked] = useState(false);
   const [browserHandoff, setBrowserHandoff] = useState<{
     platform: InAppBrowserPlatform;
     url: string;
@@ -2663,6 +2623,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
   const soundIconRef = useRef<HTMLSpanElement>(null);
   const soundTextRef = useRef<HTMLSpanElement>(null);
   const bolzooRef = useRef<BolzooAudioController | null>(null);
+  const confettiRef = useRef<ConfettiBurstHandle>(null);
   const sessionId = useMemo(() => {
     if (typeof window === "undefined") return "server";
     const key = `mend-session-${slug}`;
@@ -2768,14 +2729,26 @@ export function GreetingExperience({ slug }: { slug: string }) {
     });
   }
 
+  /** Дарсан цэгээс confetti дэлбэлж, чичиргээ өгнө. */
+  function celebrateAt(x: number, y: number) {
+    confettiRef.current?.burst(x, y);
+    haptic("celebrate");
+  }
+
   function openGift(name: "memories" | "letter" | "music") {
+    haptic("pop");
     setOpenedGifts((current) =>
       current.includes(name) ? current : [...current, name],
     );
     setScreen(name);
   }
 
-  async function react(type: ReactionType) {
+  async function react(
+    type: ReactionType,
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    celebrateAt(rect.left + rect.width / 2, rect.top + rect.height / 2);
     setReaction(type);
     await sendAction("react", { reactionType: type });
   }
@@ -2814,6 +2787,29 @@ export function GreetingExperience({ slug }: { slug: string }) {
         <Mascot variant="pout" />
         <h1>{loadError || "Мэндчилгээ олдсонгүй."}</h1>
         <a href="/create">Шинэ мэндчилгээ үүсгэх</a>
+      </main>
+    );
+  }
+
+  const locked =
+    greeting.lockUntilBirthday &&
+    isBeforeBirthday(greeting.birthdayDate) &&
+    !previewingLocked;
+  if (locked) {
+    return (
+      <main
+        className={`recipient-experience is-locked template-${greeting.template}`}
+        style={themeStyle(greeting.template)}
+      >
+        <LockedGreeting
+          greeting={greeting}
+          canPreview={ownsGreeting(slug)}
+          onPreview={() => setPreviewingLocked(true)}
+          onUnlock={() => {
+            haptic("unlock");
+            setPreviewingLocked(true);
+          }}
+        />
       </main>
     );
   }
@@ -2941,7 +2937,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
                 <i>♥</i>
               </div>
             </div>
-            <Mascot gender={greeting.recipientGender} variant="intro" />
+            <Mascot character={greeting.mascot} variant="intro" />
             <h1>Чамд нэг онцгой мэндчилгээ ирлээ</h1>
             <button
               type="button"
@@ -2949,6 +2945,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
               disabled={envelopeStage === "opening"}
               onClick={() => {
                 if (envelopeStage === "opening") return;
+                haptic("pop");
                 setEnvelopeStage("opening");
                 void sendAction("open");
                 window.setTimeout(() => setScreen("cake"), 1100);
@@ -2990,7 +2987,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
                 Бэлгүүдийг нээх <Gift size={18} />
               </button>
             </div>
-            <Mascot gender={greeting.recipientGender} variant="cake" />
+            <Mascot character={greeting.mascot} variant="cake" />
           </div>
         )}
 
@@ -3000,17 +2997,17 @@ export function GreetingExperience({ slug }: { slug: string }) {
             <h1>Чамд зориулсан 3 surprise</h1>
             <div className="gift-grid">
               <button type="button" onClick={() => openGift("memories")}>
-                <Mascot gender={greeting.recipientGender} variant="camera" />
+                <Mascot character={greeting.mascot} variant="camera" />
                 <strong>Дурсамж</strong>
                 {openedGifts.includes("memories") && <CheckCircle2 />}
               </button>
               <button type="button" onClick={() => openGift("letter")}>
-                <Mascot gender={greeting.recipientGender} variant="letter" />
+                <Mascot character={greeting.mascot} variant="letter" />
                 <strong>Захиа</strong>
                 {openedGifts.includes("letter") && <CheckCircle2 />}
               </button>
               <button type="button" onClick={() => openGift("music")}>
-                <Mascot gender={greeting.recipientGender} variant="music" />
+                <Mascot character={greeting.mascot} variant="music" />
                 <strong>Аялгуу</strong>
                 {openedGifts.includes("music") && <CheckCircle2 />}
               </button>
@@ -3019,7 +3016,10 @@ export function GreetingExperience({ slug }: { slug: string }) {
               type="button"
               className="primary-button"
               disabled={openedGifts.length < 3}
-              onClick={() => setScreen("finale")}
+              onClick={(event) => {
+                celebrateAt(event.clientX, event.clientY);
+                setScreen("finale");
+              }}
             >
               <PartyPopper size={18} /> Төгсгөлийг нээх
             </button>
@@ -3029,7 +3029,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
         {screen === "memories" && (
           <div className="memories-scene">
             <header>
-              <Mascot gender={greeting.recipientGender} variant="camera" />
+              <Mascot character={greeting.mascot} variant="camera" />
               <div>
                 <small>moments of us</small>
                 <h1>Бидний дурсамж</h1>
@@ -3059,7 +3059,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
         {screen === "letter" && (
           <div className="letter-scene">
             <header>
-              <Mascot gender={greeting.recipientGender} variant="letter" />
+              <Mascot character={greeting.mascot} variant="letter" />
               <div>
                 <small>{greeting.senderName}-ээс</small>
                 <h1>{greeting.recipientName}-д</h1>
@@ -3081,7 +3081,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
 
         {screen === "music" && (
           <div className="music-scene">
-            <Mascot gender={greeting.recipientGender} variant="music" />
+            <Mascot character={greeting.mascot} variant="music" />
             <small>Чамд зориулсан аялгуу</small>
             <h1>{greeting.musicName || "Энэ мөчийн аялгуу"}</h1>
             {greeting.musicUrl ? (
@@ -3138,35 +3138,40 @@ export function GreetingExperience({ slug }: { slug: string }) {
         )}
 
         {screen === "finale" && (
-          <div className="finale-scene">
-            <Mascot gender={greeting.recipientGender} variant="celebrate" />
+          <div
+            className="finale-scene"
+            onClick={(event) => {
+              // Товч, холбоос дээр дарсан бол тэр үйлдэл өөрөө хариу өгнө.
+              if (
+                (event.target as HTMLElement).closest(
+                  "button, a, input, textarea",
+                )
+              ) {
+                return;
+              }
+              celebrateAt(event.clientX, event.clientY);
+            }}
+          >
+            <Mascot character={greeting.mascot} variant="celebrate" />
             <small>Төрсөн өдрийн мэнд</small>
             <h1>
               {greeting.surpriseMessage ||
                 "Хүлээж байсан бүх сайхан зүйл чинь энэ жил чамайг олоосой."}
             </h1>
+            <p className="finale-tap-hint">
+              <Sparkles size={14} /> Дэлгэц дээр дарж confetti цацаарай
+            </p>
             <div className="reaction-row">
-              <button
-                type="button"
-                className={reaction === "heart" ? "selected" : ""}
-                onClick={() => void react("heart")}
-              >
-                💖 <span>Хөөрхөн байлаа</span>
-              </button>
-              <button
-                type="button"
-                className={reaction === "party" ? "selected" : ""}
-                onClick={() => void react("party")}
-              >
-                🎉 <span>Surprise болсон</span>
-              </button>
-              <button
-                type="button"
-                className={reaction === "surprised" ? "selected" : ""}
-                onClick={() => void react("surprised")}
-              >
-                🥹 <span>Сэтгэл хөдөллөө</span>
-              </button>
+              {reactionChoices.map((choice) => (
+                <button
+                  type="button"
+                  key={choice.type}
+                  className={reaction === choice.type ? "selected" : ""}
+                  onClick={(event) => void react(choice.type, event)}
+                >
+                  {choice.emoji} <span>{choice.label}</span>
+                </button>
+              ))}
             </div>
             <div className="finale-story-share">
               <StoryShareButton
@@ -3216,23 +3221,9 @@ export function GreetingExperience({ slug }: { slug: string }) {
         )}
       </section>
       <span className="recipient-theme-name">{template.name}</span>
+      <ConfettiBurst ref={confettiRef} />
     </main>
   );
-}
-
-function readOwnerEntries(): OwnerEntry[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const value = JSON.parse(window.localStorage.getItem(ownerKey) || "[]");
-    return Array.isArray(value)
-      ? value.filter(
-          (item): item is OwnerEntry =>
-            typeof item?.token === "string" && typeof item?.slug === "string",
-        )
-      : [];
-  } catch {
-    return [];
-  }
 }
 
 export function DashboardApp() {

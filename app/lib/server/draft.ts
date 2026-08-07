@@ -2,6 +2,7 @@ import {
   type GreetingDraft,
   type TemplateId,
   parseYoutubeId,
+  readMascot,
   sanitizePlainText,
   templates,
 } from "../greeting";
@@ -32,7 +33,7 @@ export function cleanDraft(value: GreetingDraft): GreetingDraft {
   return {
     currentStep: 3,
     recipientName: sanitizePlainText(value.recipientName ?? "", 40).trim(),
-    recipientGender: value.recipientGender === "male" ? "male" : "female",
+    mascot: readMascot(value),
     senderName: sanitizePlainText(value.senderName ?? "", 40).trim(),
     template: (templateIds.has(value.template) ? value.template : "cute") as TemplateId,
     headline: sanitizePlainText(value.headline ?? "", 90).trim(),
@@ -46,6 +47,9 @@ export function cleanDraft(value: GreetingDraft): GreetingDraft {
           .slice(0, 30)
       : [],
     birthdayDate: String(value.birthdayDate ?? "").slice(0, 10),
+    // Сонголтоо илэрхий илгээгээгүй хуучин ноорог түгжигдэхгүй — санамсаргүй
+    // түгжигдсэн мэндчилгээ нь эрт нээгдсэнээс хамаагүй муу.
+    lockUntilBirthday: value.lockUntilBirthday === true,
   };
 }
 

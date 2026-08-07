@@ -22,6 +22,8 @@ export const greetings = sqliteTable("greetings", {
   musicName: text("music_name").notNull(),
   photosJson: text("photos_json").notNull(),
   birthdayDate: text("birthday_date").notNull(),
+  /** 1 бол төрсөн өдрийн 00:00 хүртэл түгжээтэй байна. */
+  lockUntilBirthday: integer("lock_until_birthday").notNull().default(0),
   openedAt: text("opened_at"),
   viewCount: integer("view_count").notNull().default(0),
   createdAt: text("created_at").notNull(),

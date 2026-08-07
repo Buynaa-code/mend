@@ -67,10 +67,16 @@ img {
 
 .visually-hidden {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  /* `!important` — otherwise `.form-stack input` (0,1,1) beats this (0,1,0)
+     and stretches hidden file inputs to 100%, widening the page. */
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  margin: -1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
 }
 
@@ -551,7 +557,8 @@ img {
   border-radius: 8px;
   background: #fff;
   color: var(--ink);
-  font-size: 13px;
+  /* 16px minimum — iOS Safari zooms the page when focusing a smaller field. */
+  font-size: 16px;
 }
 
 .resume-banner-form input:focus {
@@ -622,64 +629,67 @@ img {
   gap: 15px;
 }
 
-.gender-picker {
+.mascot-picker {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
-.gender-picker > button {
+.mascot-picker > button {
   position: relative;
   min-width: 0;
-  height: 78px;
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) 20px;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
+  grid-template-rows: 58px minmax(0, 1fr);
+  justify-items: center;
+  align-content: start;
+  gap: 6px;
+  padding: 10px 6px 12px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #fff;
   color: var(--ink);
-  text-align: left;
   cursor: pointer;
   transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
-.gender-picker > button:hover,
-.gender-picker > button.selected {
+.mascot-picker > button:hover,
+.mascot-picker > button.selected {
   border-color: var(--card-accent, var(--purple));
   background: color-mix(in srgb, var(--card-bg, #fff4ad) 24%, #fff);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--card-accent, var(--purple)) 12%, transparent);
 }
 
-.gender-picker img {
-  width: 48px;
+.mascot-picker img {
+  width: 46px;
   height: 58px;
   object-fit: contain;
   pointer-events: none;
 }
 
-.gender-picker span {
+.mascot-picker span {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 2px;
+  text-align: center;
 }
 
-.gender-picker strong {
+.mascot-picker strong {
   font-size: 12px;
 }
 
-.gender-picker small {
-  overflow: hidden;
+.mascot-picker small {
   color: var(--muted);
   font-size: 9px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  text-wrap: balance;
 }
 
-.gender-picker svg {
+.mascot-picker svg {
+  position: absolute;
+  top: 6px;
+  right: 6px;
   color: var(--card-accent, var(--purple));
 }
 
@@ -2194,6 +2204,83 @@ img {
   display: flex;
   gap: 8px;
   margin-top: 15px;
+}
+
+.share-copy-cta {
+  width: 100%;
+  margin-top: 14px;
+  padding: 18px 22px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #1c5a26, #2a9d59);
+  color: white;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.25;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 10px 26px rgba(28, 90, 38, 0.35);
+  animation: share-cta-glow 2.4s ease-in-out infinite;
+  transition: transform 0.15s ease;
+}
+
+.share-copy-cta:active {
+  transform: scale(0.98);
+}
+
+.share-copy-cta.done {
+  animation: none;
+  background: linear-gradient(135deg, #2a9d59, #3fb56b);
+}
+
+@keyframes share-cta-glow {
+  0%, 100% {
+    box-shadow: 0 10px 26px rgba(28, 90, 38, 0.35);
+  }
+  50% {
+    box-shadow: 0 14px 36px rgba(42, 157, 89, 0.55);
+  }
+}
+
+.share-save-note {
+  margin: 10px 0 4px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 234, 178, 0.55);
+  color: #7a5710;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.payment-success-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  margin-top: 12px;
+}
+
+.payment-success-secondary a,
+.payment-success-secondary button {
+  padding: 4px 2px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: rgba(120, 108, 156, 0.35);
+  cursor: pointer;
+}
+
+.payment-success-secondary a:hover,
+.payment-success-secondary button:hover {
+  color: var(--purple-dark);
+  text-decoration-color: currentColor;
 }
 
 .payment-failed {
@@ -4613,7 +4700,10 @@ img {
   }
 
   .publish-stage {
-    grid-template-columns: 1fr;
+    /* `minmax(0, …)` — plain `1fr` keeps the grid item's automatic
+       `min-width: auto`, so `.publish-scene-tabs` (6 × 70px nowrap) forced a
+       455px min-content and pushed the whole publish step off-screen. */
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .publish-preview {
@@ -4959,7 +5049,9 @@ img {
 .swatch-index,
 .swatch-name {
   position: absolute;
-  z-index: 3;
+  /* Above the mascot (z-index 4) — on mobile the swatch shrinks to ~153px and
+     the 112px mascot otherwise covered 34–63px of the template name. */
+  z-index: 5;
   left: 17px;
   font-family: var(--font-geist-mono), monospace;
   font-style: normal;
@@ -7732,13 +7824,24 @@ img {
 
 .creator-layout[class*="template-"] .creator-steps > button.active {
   background: color-mix(in srgb, var(--card-accent) 12%, transparent);
-  color: var(--card-text);
+  /* NOT `--card-text`: that ink is meant for the dark card face, but the step
+     nav sits on the light header, so dark templates rendered it invisible
+     (contrast 1.0). The accent badge below carries the template identity. */
+  color: var(--purple-dark);
 }
 
 .creator-layout[class*="template-"] .creator-steps > button.active > span {
   border-color: var(--card-accent);
   background: var(--card-accent);
   color: #fff;
+}
+
+/* Form panels default to a 0.55-alpha white that turns mid-grey over the dark
+   templates, dropping their dark ink to ~1.5–3.4:1. Keep them a light surface
+   so labels and helper copy stay readable in every template. */
+.creator-layout[class*="template-"] .form-section,
+.creator-layout[class*="template-"] .resume-banner {
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .creator-layout[class*="template-"] .creator-preview {
@@ -8732,7 +8835,8 @@ img {
   padding: 10px 12px;
   border: 1px solid #d8d5e6;
   border-radius: 8px;
-  font-size: 14px;
+  /* 16px minimum — iOS Safari zooms the page when focusing a smaller field. */
+  font-size: 16px;
 }
 
 .admin-login button,
@@ -8955,6 +9059,9 @@ img {
 }
 
 .publish-flow-steps > li strong {
+  /* The wrapping <div> is a plain block, so both children stayed inline and ran
+     together as "Төлбөр төлнө5,500₮ · QPay + банкууд". */
+  display: block;
   font-size: 12px;
   line-height: 1.15;
 }
@@ -9064,6 +9171,23 @@ img {
   border: 1px dashed #cfc6ea;
 }
 
+/* Restates the checklist blocker next to the disabled publish buttons, which
+   sit far below the checklist panel itself on a phone. */
+.publish-blocked-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fdf2e4;
+  color: #8a5a1b;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: center;
+}
+
 .publish-code header {
   display: flex;
   flex-direction: column;
@@ -9085,7 +9209,8 @@ img {
   border-radius: 8px;
   border: 1px solid #cfc6ea;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 14px;
+  /* 16px minimum — iOS Safari zooms the page when focusing a smaller field. */
+  font-size: 16px;
   letter-spacing: 0.06em;
   text-align: center;
   background: white;
@@ -9144,67 +9269,100 @@ img {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.9);
   border: 1px dashed #a8d4b0;
+}
+
+.publish-invitation-link.readonly {
+  padding: 12px 14px;
+  border-style: solid;
+  border-color: #cfe7d3;
 }
 
 .publish-invitation-link span {
   flex: 1;
   min-width: 0;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   color: #24222f;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.publish-invitation-link button {
+.publish-invitation-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px 20px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1c5a26, #2a9d59);
+  color: white;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(28, 90, 38, 0.35);
+  animation: publish-cta-glow 2.4s ease-in-out infinite;
+}
+
+.publish-invitation-cta.done {
+  animation: none;
+  background: linear-gradient(135deg, #2a9d59, #3fb56b);
+}
+
+@keyframes publish-cta-glow {
+  0%, 100% {
+    box-shadow: 0 8px 22px rgba(28, 90, 38, 0.35);
+  }
+  50% {
+    box-shadow: 0 12px 32px rgba(42, 157, 89, 0.55);
+  }
+}
+
+.publish-invitation-note {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 234, 178, 0.5);
+  color: #7a5710;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.publish-invitation-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+.publish-invitation-secondary a,
+.publish-invitation-secondary button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 10px;
-  border-radius: 6px;
+  padding: 4px 2px;
   border: none;
-  background: #2a9d59;
-  color: white;
+  background: transparent;
+  color: #2a5a37;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgba(42, 90, 55, 0.35);
   cursor: pointer;
-  flex-shrink: 0;
 }
 
-.publish-invitation-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.publish-invitation-actions a,
-.publish-invitation-actions button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  border: none;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.publish-invitation-actions .primary {
-  background: #1c5a26;
-  color: white;
-}
-
-.publish-invitation-actions .secondary {
-  background: rgba(255, 255, 255, 0.7);
-  color: #1c5a26;
-  border: 1px solid #a8d4b0;
+.publish-invitation-secondary a:hover,
+.publish-invitation-secondary button:hover {
+  text-decoration-color: currentColor;
 }
 
 .payment-code-card {
@@ -9291,4 +9449,300 @@ img {
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.04em;
+}
+
+/* ============================================================
+   Confetti burst — `ConfettiBurst.tsx`
+   ============================================================ */
+
+.confetti-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.confetti-burst {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.confetti-burst > i {
+  position: absolute;
+  top: -4px;
+  left: -3px;
+  width: 7px;
+  height: 11px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: confettiFly 1.5s cubic-bezier(0.16, 0.72, 0.34, 1) forwards;
+  animation-delay: var(--confetti-delay, 0ms);
+}
+
+.confetti-burst > i:nth-child(3n) {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.confetti-burst > i:nth-child(4n) {
+  width: 6px;
+  height: 14px;
+}
+
+@keyframes confettiFly {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.6);
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(
+        var(--confetti-dx, 0px),
+        calc(var(--confetti-dy, 0px) + 130px),
+        0
+      )
+      rotate(var(--confetti-rotate, 180deg)) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti-layer {
+    display: none;
+  }
+}
+
+/* ============================================================
+   Түгжээтэй мэндчилгээ — `LockedGreeting.tsx`
+   ============================================================ */
+
+.recipient-experience.is-locked {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 24px 18px 40px;
+}
+
+.locked-scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 520px;
+  text-align: center;
+}
+
+.locked-seal {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 2px solid var(--card-accent);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--card-accent);
+  animation: lockedSealPulse 2.8s ease-in-out infinite;
+}
+
+.locked-scene .mascot {
+  width: 116px;
+  height: auto;
+}
+
+.locked-scene small {
+  color: var(--card-text);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.locked-scene h1 {
+  color: var(--card-text);
+  font-size: 26px;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.locked-note {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 38ch;
+  color: var(--card-text);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  opacity: 0.86;
+}
+
+.locked-note svg {
+  flex-shrink: 0;
+  transform: translateY(2px);
+  color: var(--card-accent);
+}
+
+.locked-scene .countdown-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  margin-top: 6px;
+}
+
+.locked-scene .countdown-grid > div {
+  height: 84px;
+}
+
+.locked-scene .countdown-grid strong {
+  font-size: 27px;
+}
+
+.locked-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--card-text) 26%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--card-text);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  opacity: 0.78;
+  transition: opacity 160ms ease, border-color 160ms ease;
+}
+
+.locked-preview:hover {
+  border-color: var(--card-accent);
+  opacity: 1;
+}
+
+@keyframes lockedSealPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--card-accent) 34%, transparent);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 12px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .locked-seal {
+    animation: none;
+  }
+}
+
+/* Finale — confetti-д зориулсан сануулга */
+.finale-tap-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--card-text);
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.finale-tap-hint svg {
+  color: var(--card-accent);
+}
+
+/* ============================================================
+   Асаах/унтраах сэлгүүр — `ToggleField.tsx`
+   ============================================================ */
+
+.toggle-field {
+  margin-top: 12px;
+}
+
+.toggle-switch {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.toggle-field.is-on .toggle-switch {
+  border-color: var(--card-accent, var(--purple));
+  background: color-mix(in srgb, var(--card-bg, #fff4ad) 20%, #fff);
+}
+
+.toggle-track {
+  position: relative;
+  display: block;
+  width: 40px;
+  height: 23px;
+  margin-top: 1px;
+  border-radius: 999px;
+  background: #d9d5e4;
+  transition: background 180ms ease;
+}
+
+.toggle-field.is-on .toggle-track {
+  background: var(--card-accent, var(--purple));
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(31, 22, 51, 0.28);
+  transition: transform 180ms cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+
+.toggle-field.is-on .toggle-thumb {
+  transform: translateX(17px);
+}
+
+.toggle-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.toggle-copy strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.toggle-copy strong svg {
+  color: var(--card-accent, var(--purple));
+}
+
+.toggle-copy small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle-thumb,
+  .toggle-track {
+    transition: none;
+  }
 }

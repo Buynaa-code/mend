@@ -78,6 +78,7 @@ async function initializeSchema() {
         music_name TEXT NOT NULL,
         photos_json TEXT NOT NULL,
         birthday_date TEXT NOT NULL,
+        lock_until_birthday INTEGER NOT NULL DEFAULT 0,
         opened_at TEXT,
         view_count INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
@@ -206,76 +207,62 @@ async function initializeSchema() {
     `),
   ]);
 
-  const columns = await db
-    .prepare("PRAGMA table_info(greetings)")
-    .all<{ name: string }>();
-  if (!columns.results.some((column) => column.name === "access_code_id")) {
-    try {
-      await db
-        .prepare("ALTER TABLE greetings ADD COLUMN access_code_id TEXT")
-        .run();
-    } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "";
-      if (!/duplicate column/i.test(message)) throw caught;
-    }
-  }
-  if (!columns.results.some((column) => column.name === "recipient_gender")) {
-    try {
-      await db
-        .prepare(
-          "ALTER TABLE greetings ADD COLUMN recipient_gender TEXT NOT NULL DEFAULT 'female'",
-        )
-        .run();
-    } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "";
-      if (!/duplicate column/i.test(message)) throw caught;
-    }
-  }
+  await addMissingColumns(db, "greetings", [
+    ["access_code_id", "ALTER TABLE greetings ADD COLUMN access_code_id TEXT"],
+    [
+      "recipient_gender",
+      "ALTER TABLE greetings ADD COLUMN recipient_gender TEXT NOT NULL DEFAULT 'female'",
+    ],
+    [
+      "lock_until_birthday",
+      "ALTER TABLE greetings ADD COLUMN lock_until_birthday INTEGER NOT NULL DEFAULT 0",
+    ],
+  ]);
   await db
     .prepare(
       "CREATE UNIQUE INDEX IF NOT EXISTS greetings_access_code_id_unique ON greetings(access_code_id)",
     )
     .run();
 
-  const accessCodeColumns = await db
-    .prepare("PRAGMA table_info(access_codes)")
-    .all<{ name: string }>();
-  const accessCodeNames = new Set(accessCodeColumns.results.map((c) => c.name));
-  const additions: Array<[string, string]> = [
-    ["source", "ALTER TABLE access_codes ADD COLUMN source TEXT NOT NULL DEFAULT 'paid'"],
+  await addMissingColumns(db, "access_codes", [
+    [
+      "source",
+      "ALTER TABLE access_codes ADD COLUMN source TEXT NOT NULL DEFAULT 'paid'",
+    ],
     ["label", "ALTER TABLE access_codes ADD COLUMN label TEXT"],
     ["created_by", "ALTER TABLE access_codes ADD COLUMN created_by TEXT"],
-  ];
-  for (const [name, sql] of additions) {
-    if (!accessCodeNames.has(name)) {
-      try {
-        await db.prepare(sql).run();
-      } catch (caught) {
-        const message = caught instanceof Error ? caught.message : "";
-        if (!/duplicate column/i.test(message)) throw caught;
-      }
-    }
-  }
+  ]);
   await db
     .prepare(
       "CREATE INDEX IF NOT EXISTS access_codes_source_idx ON access_codes(source)",
     )
     .run();
 
-  const webhookColumns = await db
-    .prepare("PRAGMA table_info(webhook_events)")
+  await addMissingColumns(db, "webhook_events", [
+    [
+      "signature_verified_at",
+      "ALTER TABLE webhook_events ADD COLUMN signature_verified_at TEXT",
+    ],
+  ]);
+}
+
+/**
+ * Байхгүй баганыг нэмнэ. Хоёр worker зэрэг ажиллуулахад `duplicate column`
+ * алдаа гарч болох тул түүнийг л залгина.
+ */
+async function addMissingColumns(
+  db: D1Database,
+  table: string,
+  columns: Array<[name: string, sql: string]>,
+) {
+  const existing = await db
+    .prepare(`PRAGMA table_info(${table})`)
     .all<{ name: string }>();
-  if (
-    !webhookColumns.results.some(
-      (column) => column.name === "signature_verified_at",
-    )
-  ) {
+  const present = new Set(existing.results.map((column) => column.name));
+  for (const [name, sql] of columns) {
+    if (present.has(name)) continue;
     try {
-      await db
-        .prepare(
-          "ALTER TABLE webhook_events ADD COLUMN signature_verified_at TEXT",
-        )
-        .run();
+      await db.prepare(sql).run();
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "";
       if (!/duplicate column/i.test(message)) throw caught;

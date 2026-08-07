@@ -10,7 +10,6 @@ import {
   ChevronUp,
   Copy,
   ExternalLink,
-  Gift,
   LoaderCircle,
   QrCode,
   RefreshCw,
@@ -20,7 +19,9 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppShell } from "./BirthdayApp";
+import { mascotSource } from "./Mascot";
 import { StoryShareButton } from "./StoryShareButton";
+import type { MascotCharacter } from "./lib/greeting";
 
 type Deeplink = {
   name: string;
@@ -33,7 +34,7 @@ type Publication = {
   id: string;
   publicSlug: string;
   recipientName: string;
-  recipientGender: "female" | "male";
+  mascot: MascotCharacter;
   ownerToken: string;
 };
 
@@ -153,6 +154,7 @@ export function PaymentApp() {
   const [payLinkCopied, setPayLinkCopied] = useState(false);
   const [orderIdCopied, setOrderIdCopied] = useState(false);
   const [showAllBanks, setShowAllBanks] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const publishLock = useRef(false);
 
   const publishGreeting = useCallback(async (code: string) => {
@@ -388,42 +390,59 @@ export function PaymentApp() {
         ) : payment?.publication ? (
           <section className="payment-success">
             <img
-              src={
-                payment.publication.recipientGender === "male"
-                  ? "/assets/mend-tiger-celebrate.png"
-                  : "/assets/mend-fawn-celebrate.png"
-              }
+              src={mascotSource(payment.publication.mascot, "celebrate")}
               alt=""
             />
             <CheckCircle2 size={31} />
             <small>ТӨЛБӨР БАТАЛГААЖСАН</small>
-            <h2>Мэндчилгээ нийтлэгдлээ!</h2>
-            <p>{payment.publication.recipientName}-д зориулсан линк бэлэн.</p>
+            <h2>Мэндчилгээ бэлэн боллоо!</h2>
+            <p>{payment.publication.recipientName}-д зориулсан урилгын линк.</p>
+
             <div className="share-field">
               <span>{shareUrl}</span>
-              <button
-                type="button"
-                className="icon-button"
-                title="Линк хуулах"
-                aria-label="Линк хуулах"
-                onClick={() => navigator.clipboard?.writeText(shareUrl)}
-              >
-                <Copy size={18} />
-              </button>
             </div>
-            <div className="payment-success-actions">
+
+            <button
+              type="button"
+              className={`share-copy-cta${shareCopied ? " done" : ""}`}
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(shareUrl);
+                  setShareCopied(true);
+                  window.setTimeout(() => setShareCopied(false), 2500);
+                } catch {
+                  /* clipboard blocked */
+                }
+              }}
+            >
+              {shareCopied ? (
+                <>
+                  <Check size={22} />
+                  Линк хуулагдлаа — одоо найздаа илгээ
+                </>
+              ) : (
+                <>
+                  <Copy size={22} />
+                  Линкээ хуулаад хайртай хүн рүүгээ илгээгээрэй
+                </>
+              )}
+            </button>
+
+            <p className="share-save-note">
+              ⚠ Линкээ заавал хуулж, хадгалж авна уу — дараа энэ хуудсаас олдохгүй байж болно.
+            </p>
+
+            <div className="payment-success-secondary">
               <StoryShareButton
                 slug={payment.publication.publicSlug}
                 recipientName={payment.publication.recipientName}
-                className="primary"
               />
-              <a className="primary-link" href={shareUrl}>
-                <Gift size={18} /> Линкээ нээх
+              <a href={shareUrl} target="_blank" rel="noreferrer">
+                Линк нээж үзэх
               </a>
-              <a className="secondary-link" href="/dashboard">
-                Dashboard
-              </a>
+              <a href="/dashboard">Dashboard</a>
             </div>
+
             {payment.accessCode && (
               <div className="payment-success-receipt">
                 <TicketCheck size={14} />

@@ -1,5 +1,8 @@
 import { ensureSchema, getDb } from "../../../db";
-import { type GreetingDraft } from "../../lib/greeting";
+import {
+  type GreetingDraft,
+  normalizeMascot,
+} from "../../lib/greeting";
 import {
   findAccessCodeByCode,
   normalizeAccessCode,
@@ -24,6 +27,7 @@ type ExistingPublication = {
   id: string;
   public_slug: string;
   recipient_name: string;
+  /** Хуучин нэртэй багана — одоо дүрийн id хадгална. */
   recipient_gender: string;
 };
 
@@ -80,7 +84,7 @@ export async function POST(request: Request) {
         id: existing.id,
         publicSlug: existing.public_slug,
         recipientName: existing.recipient_name,
-        recipientGender: existing.recipient_gender === "male" ? "male" : "female",
+        mascot: normalizeMascot(existing.recipient_gender),
         ownerToken,
       });
     }
@@ -130,10 +134,10 @@ export async function POST(request: Request) {
             INSERT INTO greetings (
               id, owner_token_hash, access_code_id, public_slug, recipient_name,
               recipient_gender, sender_name, template, headline, message, surprise_message,
-              music_url, music_name, photos_json, birthday_date, opened_at,
-              view_count, created_at, updated_at
+              music_url, music_name, photos_json, birthday_date, lock_until_birthday,
+              opened_at, view_count, created_at, updated_at
             )
-            SELECT ?, ?, ac.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?
+            SELECT ?, ?, ac.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?
             FROM access_codes ac
             WHERE ac.id = ? AND ac.code = ?
               AND ac.status IN ('issued', 'valid') AND ac.used_at IS NULL
@@ -144,7 +148,7 @@ export async function POST(request: Request) {
             ownerTokenHash,
             publicSlug,
             draft.recipientName,
-            draft.recipientGender,
+            draft.mascot,
             draft.senderName,
             draft.template,
             headline,
@@ -154,6 +158,7 @@ export async function POST(request: Request) {
             draft.musicName,
             JSON.stringify(draft.photos),
             draft.birthdayDate,
+            draft.lockUntilBirthday ? 1 : 0,
             now,
             now,
             code.id,
@@ -230,7 +235,7 @@ export async function POST(request: Request) {
           id: raced.id,
           publicSlug: raced.public_slug,
           recipientName: raced.recipient_name,
-          recipientGender: raced.recipient_gender === "male" ? "male" : "female",
+          mascot: normalizeMascot(raced.recipient_gender),
           ownerToken,
         });
       }
@@ -242,7 +247,7 @@ export async function POST(request: Request) {
         id: greetingId,
         publicSlug,
         recipientName: draft.recipientName,
-        recipientGender: draft.recipientGender,
+        mascot: draft.mascot,
         ownerToken,
       },
       { status: 201 },

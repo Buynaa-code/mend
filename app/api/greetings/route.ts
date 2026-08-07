@@ -4,6 +4,7 @@ import {
   type PublicGreeting,
   type ReactionType,
   type TemplateId,
+  normalizeMascot,
   sanitizePlainText,
   templates,
 } from "../../lib/greeting";
@@ -13,6 +14,7 @@ type GreetingRow = {
   owner_token_hash: string;
   public_slug: string;
   recipient_name: string;
+  /** Хуучин нэртэй багана — одоо дүрийн id хадгална. */
   recipient_gender: string;
   sender_name: string;
   template: string;
@@ -23,6 +25,7 @@ type GreetingRow = {
   music_name: string;
   photos_json: string;
   birthday_date: string;
+  lock_until_birthday: number;
   opened_at: string | null;
   view_count: number;
   created_at: string;
@@ -74,7 +77,7 @@ function toPublicGreeting(row: GreetingRow): PublicGreeting {
   return {
     publicSlug: row.public_slug,
     recipientName: row.recipient_name,
-    recipientGender: row.recipient_gender === "male" ? "male" : "female",
+    mascot: normalizeMascot(row.recipient_gender),
     senderName: row.sender_name,
     template: (templateIds.has(row.template as TemplateId)
       ? row.template
@@ -86,6 +89,7 @@ function toPublicGreeting(row: GreetingRow): PublicGreeting {
     musicName: row.music_name,
     photos: parsePhotos(row.photos_json),
     birthdayDate: row.birthday_date,
+    lockUntilBirthday: row.lock_until_birthday === 1,
     createdAt: row.created_at,
   };
 }

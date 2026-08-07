@@ -2,14 +2,19 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const mascotVariants = [
-  ...["", "-pout", "-celebrate", "-camera", "-letter", "-music", "-cake"].map(
-    (pose) => `mend-fawn${pose}.png`,
-  ),
-  ...["", "-pout", "-celebrate", "-camera", "-letter", "-music", "-cake"].map(
-    (pose) => `mend-tiger${pose}.png`,
-  ),
+const mascotCharacters = ["mend-fawn", "mend-tiger", "mend-giraffe"];
+const mascotPoses = [
+  "",
+  "-pout",
+  "-celebrate",
+  "-camera",
+  "-letter",
+  "-music",
+  "-cake",
 ];
+const mascotVariants = mascotCharacters.flatMap((character) =>
+  mascotPoses.map((pose) => `${character}${pose}.png`),
+);
 
 async function render(path = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
@@ -127,14 +132,121 @@ test("ships every transparent mascot pose", async () => {
   }
 });
 
-test("selects the tiger mascot for male recipients", async () => {
-  const source = await readFile(
+test("offers every mascot character through one shared catalog", async () => {
+  const greetingSource = await readFile(
+    new URL("../app/lib/greeting.ts", import.meta.url),
+    "utf8",
+  );
+  const pickerSource = await readFile(
+    new URL("../app/MascotPicker.tsx", import.meta.url),
+    "utf8",
+  );
+  const paymentSource = await readFile(
+    new URL("../app/PaymentApp.tsx", import.meta.url),
+    "utf8",
+  );
+
+  for (const asset of mascotCharacters) {
+    assert.match(greetingSource, new RegExp(`asset: "${asset}"`));
+  }
+  // Дүр сонголтоос өмнөх мэндчилгээнүүд хэвээр ажиллана.
+  assert.match(greetingSource, /female: "fawn"/);
+  assert.match(greetingSource, /male: "tiger"/);
+  // Сонголт болон төлбөрийн хуудас аль аль нь каталогоос уншина.
+  assert.match(pickerSource, /mascotOptions\.map/);
+  assert.match(paymentSource, /mascotSource\(payment\.publication\.mascot/);
+});
+
+test("locks a greeting until midnight only when the creator asks", async () => {
+  const dateSource = await readFile(
+    new URL("../app/lib/date.ts", import.meta.url),
+    "utf8",
+  );
+  const recipientSource = await readFile(
     new URL("../app/BirthdayApp.tsx", import.meta.url),
     "utf8",
   );
-  assert.match(source, /recipientGender === "male"/);
-  assert.match(source, /mend-tiger-celebrate\.png/);
-  assert.match(source, /onClick=\{\(\) => update\(\{ recipientGender: "male" \}\)\}/);
+  const lockedSource = await readFile(
+    new URL("../app/LockedGreeting.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(dateSource, /export function isBeforeBirthday/);
+  assert.match(dateSource, /T00:00:00/);
+  // Түгжээ зөвхөн үүсгэгч сонгосон үед үйлчилнэ.
+  assert.match(recipientSource, /greeting\.lockUntilBirthday &&/);
+  assert.match(recipientSource, /isBeforeBirthday\(greeting\.birthdayDate\)/);
+  // Сэлгүүр нь үүсгэх урсгалын огнооны хэсэгт байна.
+  assert.match(recipientSource, /update\(\{ lockUntilBirthday \}\)/);
+  // Илгээгч өөрөө түгжээг алгасаж чадна.
+  assert.match(recipientSource, /canPreview=\{ownsGreeting\(slug\)\}/);
+  // Тоолуур дуусахад дэлгэц өөрөө нээгдэнэ.
+  assert.match(lockedSource, /onComplete=\{onUnlock\}/);
+});
+
+test("persists the lock choice without breaking older greetings", async () => {
+  const bootstrapSource = await readFile(
+    new URL("../db/index.ts", import.meta.url),
+    "utf8",
+  );
+  const schemaSource = await readFile(
+    new URL("../db/schema.ts", import.meta.url),
+    "utf8",
+  );
+  const draftSource = await readFile(
+    new URL("../app/lib/server/draft.ts", import.meta.url),
+    "utf8",
+  );
+  const greetingsSource = await readFile(
+    new URL("../app/api/greetings/route.ts", import.meta.url),
+    "utf8",
+  );
+  const publishSource = await readFile(
+    new URL("../app/api/publish/route.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(schemaSource, /lock_until_birthday/);
+  // Хуучин DB дээр багана нэмэгдэнэ, давхардвал алдаа шиднэ.
+  assert.match(
+    bootstrapSource,
+    /ALTER TABLE greetings ADD COLUMN lock_until_birthday INTEGER NOT NULL DEFAULT 0/,
+  );
+  assert.match(bootstrapSource, /duplicate column/);
+  // Сонголтоо илгээгээгүй ноорог түгжигдэхгүй.
+  assert.match(draftSource, /lockUntilBirthday: value\.lockUntilBirthday === true/);
+  assert.match(publishSource, /draft\.lockUntilBirthday \? 1 : 0/);
+  assert.match(
+    greetingsSource,
+    /lockUntilBirthday: row\.lock_until_birthday === 1/,
+  );
+});
+
+test("gives celebratory confetti and haptic feedback", async () => {
+  const confettiSource = await readFile(
+    new URL("../app/ConfettiBurst.tsx", import.meta.url),
+    "utf8",
+  );
+  const hapticsSource = await readFile(
+    new URL("../app/lib/haptics.ts", import.meta.url),
+    "utf8",
+  );
+  const recipientSource = await readFile(
+    new URL("../app/BirthdayApp.tsx", import.meta.url),
+    "utf8",
+  );
+  const styles = await readFile(
+    new URL("../app/globals.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(confettiSource, /useImperativeHandle/);
+  assert.match(hapticsSource, /navigator\.vibrate/);
+  // Хөдөлгөөн багасгах тохиргоог хүндэтгэнэ.
+  assert.match(hapticsSource, /prefers-reduced-motion/);
+  assert.match(styles, /@keyframes confettiFly/);
+  assert.match(recipientSource, /<ConfettiBurst ref=\{confettiRef\} \/>/);
+  assert.match(recipientSource, /haptic\("celebrate"\)/);
 });
 
 test("offers a 9:16 social story sharing flow", async () => {
