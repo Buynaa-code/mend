@@ -11,6 +11,11 @@
   `qpay` горимд QR-ээ шууд энэ хуудсан дээр харуулна.
 - `/g/:slug` — хүлээн авагчийн public мэндчилгээ
 - `/dashboard` — нээлт, reaction, guestbook
+- `/urilga` — Т. Ганхуягийн "Гэр бүрэх" ёслолын статик урилга
+  (cover, урилга, тов + countdown, газрын зураг, RSVP, холбоо барих).
+  Загварыг `app/urilga.css` дотор `.urilga-root`-оор хязгаарласан тул
+  `globals.css`-т нөлөөлөхгүй. Cover-ийн эх зургийг ашиглах бол
+  `public/ger-burekh-reference.png` файлыг нэмнэ.
 
 `1 төлбөр = 1 мэндчилгээний линк`. Frontend төлбөрийг амжилттай гэж
 тогтоохгүй. QPay callback ирсний дараа backend `/v2/payment/check` ашиглан
