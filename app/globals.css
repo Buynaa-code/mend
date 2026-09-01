@@ -3295,6 +3295,32 @@ img {
   font-size: 10px;
 }
 
+.no-music-failed {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 0;
+  padding: 13px 15px;
+  line-height: 1.5;
+}
+
+.music-external-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: underline;
+}
+
+.music-audio-error {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
 .form-section {
   display: flex;
   flex-direction: column;
@@ -3706,8 +3732,18 @@ img {
   top: -9999px;
   width: 1px;
   height: 1px;
+  overflow: hidden;
   opacity: 0;
   pointer-events: none;
+}
+
+/* YT.Player өгсөн зангилаагаа iframe-ээр сольдог тул host дотор нэг удаагийн
+   хүү зангилаа үүсгэдэг. Хэмжээг нь энд тогтооно. */
+.mend-yt-host .mend-yt-frame,
+.mend-yt-host iframe {
+  width: 320px;
+  height: 180px;
+  border: 0;
 }
 
 .sound-dock {
@@ -3742,6 +3778,11 @@ img {
 
 .sound-dock > .sound[aria-pressed="true"] .sound-icon {
   animation: sound-bounce 0.9s ease-in-out infinite;
+}
+
+.sound-dock > .sound[data-sound-state="failed"] {
+  border-color: rgba(198, 76, 76, 0.45);
+  color: #a33b3b;
 }
 
 .sound-dock > .sound[aria-busy="true"] {

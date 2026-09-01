@@ -65,6 +65,30 @@ export async function POST(request: Request) {
   }
 }
 
+/** `bytes=0-1023`, `bytes=500-`, `bytes=-500` хэлбэрийн Range-ийг задална. */
+function parseRange(header: string | null, size: number) {
+  if (!header) return null;
+  const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!match) return null;
+  const [, rawStart, rawEnd] = match;
+  if (!rawStart && !rawEnd) return null;
+  let start: number;
+  let end: number;
+  if (!rawStart) {
+    const suffix = Number(rawEnd);
+    if (!Number.isFinite(suffix) || suffix <= 0) return null;
+    start = Math.max(0, size - suffix);
+    end = size - 1;
+  } else {
+    start = Number(rawStart);
+    end = rawEnd ? Number(rawEnd) : size - 1;
+  }
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  if (start > end || start >= size) return { unsatisfiable: true as const };
+  end = Math.min(end, size - 1);
+  return { start, end, length: end - start + 1 };
+}
+
 export async function GET(request: Request) {
   try {
     const key = new URL(request.url).searchParams.get("key");
@@ -72,16 +96,53 @@ export async function GET(request: Request) {
       return new Response("Not found", { status: 404 });
     }
     const bucket = await getMediaBucket();
+
+    const head = await bucket.head(key);
+    if (!head) return new Response("Not found", { status: 404 });
+    const size = head.size;
+    const range = parseRange(request.headers.get("range"), size);
+
+    const baseHeaders = new Headers();
+    head.writeHttpMetadata(baseHeaders);
+    baseHeaders.set("cache-control", "public, max-age=31536000, immutable");
+    baseHeaders.set("etag", head.httpEtag);
+    baseHeaders.set("x-content-type-options", "nosniff");
+    // Safari (iOS дээр ялангуяа) дуу тоглуулахын өмнө byte-range хүсдэг ба
+    // сервер 206 буцаахгүй бол audio элемент огт эхэлдэггүй.
+    baseHeaders.set("accept-ranges", "bytes");
+
+    if (range && "unsatisfiable" in range) {
+      baseHeaders.set("content-range", `bytes */${size}`);
+      return new Response(null, { status: 416, headers: baseHeaders });
+    }
+
+    if (request.method === "HEAD") {
+      baseHeaders.set("content-length", String(size));
+      return new Response(null, { status: 200, headers: baseHeaders });
+    }
+
+    if (range) {
+      const object = await bucket.get(key, {
+        range: { offset: range.start, length: range.length },
+      });
+      if (!object) return new Response("Not found", { status: 404 });
+      baseHeaders.set(
+        "content-range",
+        `bytes ${range.start}-${range.end}/${size}`,
+      );
+      baseHeaders.set("content-length", String(range.length));
+      return new Response(object.body, { status: 206, headers: baseHeaders });
+    }
+
     const object = await bucket.get(key);
     if (!object) return new Response("Not found", { status: 404 });
-
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set("cache-control", "public, max-age=31536000, immutable");
-    headers.set("etag", object.httpEtag);
-    headers.set("x-content-type-options", "nosniff");
-    return new Response(object.body, { headers });
+    baseHeaders.set("content-length", String(size));
+    return new Response(object.body, { status: 200, headers: baseHeaders });
   } catch {
     return new Response("Not found", { status: 404 });
   }
+}
+
+export async function HEAD(request: Request) {
+  return GET(request);
 }
