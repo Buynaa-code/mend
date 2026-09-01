@@ -40,6 +40,7 @@ import {
   type ChangeEvent,
   type CSSProperties,
   type ReactNode,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -96,6 +97,7 @@ type BolzooAudioController = {
   setMuted(muted: boolean): void;
   start(): void;
   toggle?(): void;
+  retry?(): void;
   attachButton?(el: HTMLElement | null): void;
   attachIcon?(el: HTMLElement | null): void;
   attachText?(el: HTMLElement | null): void;
@@ -2619,6 +2621,13 @@ export function GreetingExperience({ slug }: { slug: string }) {
   } | null>(null);
   const [handoffDismissed, setHandoffDismissed] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [audioError, setAudioError] = useState("");
+  /**
+   * YouTube player-ийн host div нь түгжээтэй мэндчилгээ, in-app browser gate,
+   * ачаалж буй төлөвт DOM-д байдаггүй. Тэр үед player үүсгэвэл чимээгүй
+   * бүтэлгүйтдэг тул host бэлэн болсны дараа л controller-ээ асаана.
+   */
+  const [ytHostReady, setYtHostReady] = useState(false);
   const soundButtonRef = useRef<HTMLButtonElement>(null);
   const soundIconRef = useRef<HTMLSpanElement>(null);
   const soundTextRef = useRef<HTMLSpanElement>(null);
@@ -2689,8 +2698,12 @@ export function GreetingExperience({ slug }: { slug: string }) {
 
   const ytVideoId = greeting ? parseYoutubeId(greeting.musicUrl) : null;
 
+  const attachYtHost = useCallback((node: HTMLDivElement | null) => {
+    setYtHostReady(Boolean(node));
+  }, []);
+
   useEffect(() => {
-    if (!ytVideoId) return;
+    if (!ytVideoId || !ytHostReady) return;
     let cancelled = false;
     const tryInit = () => {
       if (cancelled) return;
@@ -2716,7 +2729,7 @@ export function GreetingExperience({ slug }: { slug: string }) {
       bolzooRef.current = null;
       if (controller) controller.destroy();
     };
-  }, [ytVideoId]);
+  }, [ytVideoId, ytHostReady]);
 
   async function sendAction(
     action: "open" | "react" | "guestbook",
@@ -2876,8 +2889,9 @@ export function GreetingExperience({ slug }: { slug: string }) {
         id="mend-yt-host"
         className="mend-yt-host"
         aria-hidden="true"
+        ref={attachYtHost}
       />
-      {ytVideoId && !ytFailed && (
+      {ytVideoId && (
         <div className="sound-dock">
           <button
             ref={(node) => {
@@ -2889,6 +2903,9 @@ export function GreetingExperience({ slug }: { slug: string }) {
             aria-pressed="false"
             onClick={() => {
               const controller = bolzooRef.current;
+              // Бүтэлгүйтсэн бол дахин оролдоно — өмнө нь товч алга болж,
+              // хэрэглэгч дуугаа огт асаах аргагүй болдог байв.
+              if (ytFailed) setYtFailed(false);
               if (controller?.toggle) {
                 controller.toggle();
               } else {
@@ -3087,11 +3104,20 @@ export function GreetingExperience({ slug }: { slug: string }) {
             {greeting.musicUrl ? (
               ytVideoId ? (
                 ytFailed ? (
-                  <div className="no-music">
+                  <div className="no-music no-music-failed">
                     <VolumeX size={25} />
                     <span>
-                      YouTube-с холбогдож чадсангүй. Дараа дахин үзнэ үү.
+                      YouTube-с холбогдож чадсангүй. Баруун дээд 🎵 товчийг
+                      дарж дахин оролдох, эсвэл дуугаа YouTube дээр нээнэ үү.
                     </span>
+                    <a
+                      className="music-external-link"
+                      href={greeting.musicUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                    >
+                      <ExternalLink size={15} /> YouTube дээр сонсох
+                    </a>
                   </div>
                 ) : (
                   <p className="music-dock-hint">
@@ -3103,22 +3129,52 @@ export function GreetingExperience({ slug }: { slug: string }) {
                   <audio
                     ref={audioRef}
                     src={greeting.musicUrl}
-                    onPlay={() => setPlaying(true)}
+                    preload="metadata"
+                    playsInline
+                    onPlay={() => {
+                      setAudioError("");
+                      setPlaying(true);
+                    }}
                     onPause={() => setPlaying(false)}
                     onEnded={() => setPlaying(false)}
+                    onError={() =>
+                      setAudioError(
+                        "Дууны файлыг тоглуулж чадсангүй. Хуудсаа сэргээж үзнэ үү.",
+                      )
+                    }
                   />
                   <button
                     type="button"
                     className="music-play"
                     onClick={() => {
-                      if (!audioRef.current) return;
-                      if (playing) audioRef.current.pause();
-                      else void audioRef.current.play();
+                      const audio = audioRef.current;
+                      if (!audio) return;
+                      if (playing) {
+                        audio.pause();
+                        return;
+                      }
+                      // play() нь Promise буцаадаг ба iOS/Safari дээр татгалзаж
+                      // болно. Өмнө нь энэ алдааг залгидаг байсан тул товч
+                      // дарахад юу ч болохгүй, шалтгаан нь ч харагддаггүй байв.
+                      const started = audio.play();
+                      if (started && typeof started.catch === "function") {
+                        started.catch(() => {
+                          setPlaying(false);
+                          setAudioError(
+                            "Дуу автоматаар нээгдсэнгүй. Товчоо дахин дарна уу.",
+                          );
+                        });
+                      }
                     }}
                   >
                     {playing ? <Pause size={28} /> : <Play size={28} />}
                   </button>
                   <p>{playing ? "Аялгуу тоглож байна" : "Play дарж сонсоорой"}</p>
+                  {audioError ? (
+                    <p className="music-audio-error" role="status">
+                      {audioError}
+                    </p>
+                  ) : null}
                 </>
               )
             ) : (
