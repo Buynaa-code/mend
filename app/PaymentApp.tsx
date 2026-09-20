@@ -481,6 +481,18 @@ export function PaymentApp() {
                 </div>
               ) : (
                 <>
+                  <div className="qpay-required-notice">
+                    <ShieldCheck size={16} />
+                    <div>
+                      <strong>Төлбөрөө заавал QPay-ээр хийнэ үү</strong>
+                      <p>
+                        Зөвхөн доорх QR эсвэл банкны товчоор хийсэн QPay
+                        гүйлгээ автоматаар баталгаажиж, нэг удаагийн код үүснэ.
+                        Дансаар шууд шилжүүлсэн төлбөрийг систем таних
+                        боломжгүй.
+                      </p>
+                    </div>
+                  </div>
                   {inAppBrowser && hasBankLinks && (
                     <div className="inapp-notice">
                       <strong>

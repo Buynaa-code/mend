@@ -6,7 +6,7 @@
 ## Үндсэн урсгал
 
 - `/create` — template, нэр, зураг, дуу, мессеж, mobile preview
-- `/pay` — 5,500₮ төлбөр. `wire` горимд wire.mn hosted checkout
+- `/pay` — 8,500₮ төлбөр. `wire` горимд wire.mn hosted checkout
   (`pay.wire.mn`) руу чиглүүлж, QR код + банкны deeplink-ийг тэнд харуулна.
   `qpay` горимд QR-ээ шууд энэ хуудсан дээр харуулна.
 - `/g/:slug` — хүлээн авагчийн public мэндчилгээ

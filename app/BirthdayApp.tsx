@@ -1898,7 +1898,7 @@ export function CreateGreetingApp() {
                         </span>
                         <div>
                           <strong>Төлбөр төлнө</strong>
-                          <small>5,500₮ · QPay + банкууд</small>
+                          <small>8,500₮ · QPay + банкууд</small>
                         </div>
                       </li>
                       <li className="publish-flow-arrow" aria-hidden="true">
@@ -1941,8 +1941,7 @@ export function CreateGreetingApp() {
                     </p>
 
                     <div className="publish-invoice-price">
-                      <strong>5,500₮</strong>
-                      <span className="publish-invoice-strike">8,500₮</span>
+                      <strong>8,500₮</strong>
                     </div>
 
                     <button
@@ -1974,7 +1973,8 @@ export function CreateGreetingApp() {
 
                     <small className="publish-invoice-note">
                       <ShieldCheck size={11} />
-                      QPay · Төлмөгц BDY- код автоматаар ирнэ
+                      Төлбөрөө заавал QPay-ээр хийнэ үү · Төлмөгц BDY- код
+                      автоматаар ирнэ
                     </small>
                   </section>
 

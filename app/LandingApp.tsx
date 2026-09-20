@@ -134,8 +134,8 @@ const sceneMeta = [
 
 const faqs = [
   {
-    q: "Яагаад 5,500₮ гэсэн ганц үнэтэй вэ?",
-    a: "Энгийн үнэ нь 8,500₮ ч эхний 50 хэрэглэгчид нээлтийн урамшуулалаар 5,500₮-өөр авах боломжтой. Нэг төлбөр = нэг мэндчилгээний линк. Сар бүрийн эсвэл нуугдсан төлбөр байхгүй. Загварлах, preview хийх нь бүрэн үнэгүй — зөвхөн нийтлэхэд л төлнө.",
+    q: "Яагаад 8,500₮ гэсэн ганц үнэтэй вэ?",
+    a: "Нэг төлбөр = нэг мэндчилгээний линк. Сар бүрийн эсвэл нуугдсан төлбөр байхгүй. Загварлах, preview хийх нь бүрэн үнэгүй — зөвхөн нийтлэхэд л төлнө.",
   },
   {
     q: "Төлбөр найдвартай юу?",
@@ -163,9 +163,8 @@ const HERO_PHOTO =
   "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=900&q=80";
 const LETTER_TEXT =
   "Одоо ч мартагдашгүй инээмсэглэлээ хайрлаж явдаг чамдаа шинэ настайн мэнд хүргэе. Хамгийн онцгой мөчүүд чинь бидний хамгийн үнэ цэнэтэй эрдэнэс байлаа. Энэ жил чамд аз жаргал дүүрэн байх болтугай.";
-const PRICE = "5,500₮";
-const ORIGINAL_PRICE = "8,500₮";
-const PROMO_NOTE = "Эхний 50 хэрэглэгчид · нээлтийн урамшуулал";
+const PRICE = "8,500₮";
+const PROMO_NOTE = "Нэг удаагийн төлбөр · нуугдсан төлбөргүй";
 const CAVEAT_STACK = "var(--font-caveat), 'Caveat', cursive";
 
 function pad(n: number) {
@@ -2145,7 +2144,7 @@ function PriceSection() {
                 color: "#5a3d0f",
               }}
             >
-              🎉 {PROMO_NOTE}
+              ✨ {PROMO_NOTE}
             </Chip>
             <div
               style={{
@@ -2156,17 +2155,6 @@ function PriceSection() {
                 flexWrap: "wrap",
               }}
             >
-              <span
-                style={{
-                  fontSize: "clamp(20px,3vw,26px)",
-                  fontWeight: 700,
-                  color: "#a89fb8",
-                  textDecoration: "line-through",
-                  textDecorationThickness: 2,
-                }}
-              >
-                {ORIGINAL_PRICE}
-              </span>
               <strong
                 style={{
                   fontSize: "clamp(48px,8vw,66px)",

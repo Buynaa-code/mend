@@ -98,7 +98,7 @@ test("creator requires checkout instead of direct publishing", async () => {
     new URL("../app/BirthdayApp.tsx", import.meta.url),
     "utf8",
   );
-  assert.match(source, /5,500₮/);
+  assert.match(source, /8,500₮/);
   assert.match(source, /Төлбөр төлж код авах/);
   assert.match(source, /fetch\("\/api\/checkout"/);
   assert.doesNotMatch(source, />Тусгай линк үүсгэх</);
@@ -111,7 +111,7 @@ test("root renders landing page with template gallery", async () => {
   assert.match(html, /landing-root/);
   assert.match(html, /landing-tmpl-card/);
   assert.match(html, /8 mood, 8 өнгө/);
-  assert.match(html, /5,500₮/);
+  assert.match(html, /8,500₮/);
   assert.match(html, /href="\/create\?template=cute"/);
 });
 
